@@ -33,6 +33,9 @@ const getBySection = async (req, res) => {
 const deleteMedia = async (req, res) => {
     const { id } = req.params;
     const media = await Media.findByIdAndDelete(id);
+    if (!media) {
+        return res.status(404).json({ success: false, message: "Media not found" });
+    }
     res.status(200).json({ success: true, data: media });
 };
 

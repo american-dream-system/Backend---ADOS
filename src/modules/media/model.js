@@ -10,4 +10,18 @@ const mediaSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+// return image url 
+mediaSchema.post("init", (doc) => {
+    if (doc.images) {
+        doc.images = doc.images.map((image) => `http://localhost:9500/media/${image}`);
+    }
+});
+
+// modify find query 
+mediaSchema.post(/^find/, (doc) => {
+    if (doc.images) {
+        doc.images = doc.images.map((image) => `http://localhost:9500/media/${image}`);
+    }
+});
+
 module.exports = mongoose.model("Media", mediaSchema);

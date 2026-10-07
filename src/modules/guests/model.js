@@ -9,7 +9,8 @@ const guestSchema = new Schema({
     },
     phone: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     age: {
         type: String,

@@ -1,86 +1,16 @@
 const express = require("express");
 const router = express.Router();
-const service = require("./services");
+const { createGuest, getAllGuests, getGuestById, updateGuest, deleteGuest } = require("./services");
 
-// Routes
-/*
-    @swagger
-    components:
-        schemas:
-            Guest:
-                type: object
-                properties:
-                    name: { type: string, description: "The name of the guest" }
-                    description: { type: string, description: "The description of the guest" }
-                    owner: { type: string, description: "The owner of the guest" }
-                    guestUrl: { type: string, description: "The URL of the guest" }
-                    category: { type: string, description: "The category of the guest" }
-                    status: { type: string, enum: ['pending', 'approved', 'rejected'], description: "The status of the guest" }
-*/
-router.post("/", service.createGuest);
 
-/*
-    @swagger
-    components:
-        schemas:
-            Guest:
-                type: object
-                properties:
-                    name: { type: string, description: "The name of the guest" }
-                    description: { type: string, description: "The description of the guest" }
-                    owner: { type: string, description: "The owner of the guest" }
-                    guestUrl: { type: string, description: "The URL of the guest" }
-                    category: { type: string, description: "The category of the guest" }
-                    status: { type: string, enum: ['pending', 'approved', 'rejected'], description: "The status of the guest" }
-*/
-router.get("/", service.getAllGuests);
+router.post("/", createGuest);
 
-/*
-    @swagger
-    components:
-        schemas:
-            Guest:
-                type: object
-                properties:
-                    name: { type: string, description: "The name of the guest" }
-                    description: { type: string, description: "The description of the guest" }
-                    owner: { type: string, description: "The owner of the guest" }
-                    guestUrl: { type: string, description: "The URL of the guest" }
-                    category: { type: string, description: "The category of the guest" }
-                    status: { type: string, enum: ['pending', 'approved', 'rejected'], description: "The status of the guest" }
-*/
-router.get("/:id", service.getGuestById);
+router.get("/", getAllGuests);
 
-/*
-    @swagger
-    components:
-        schemas:
-            Guest:
-                type: object
-                properties:
-                    name: { type: string, description: "The name of the guest" }
-                    description: { type: string, description: "The description of the guest" }
-                    owner: { type: string, description: "The owner of the guest" }
-                    guestUrl: { type: string, description: "The URL of the guest" }
-                    category: { type: string, description: "The category of the guest" }
-                    status: { type: string, enum: ['pending', 'approved', 'rejected'], description: "The status of the guest" }
-*/
-router.put("/:id", service.updateGuest);
+router.get("/:id", getGuestById);
 
-/*
-    @swagger
-    components:
-        schemas:
-            Guest:
-                type: object
-                properties:
-                    name: { type: string, description: "The name of the guest" }
-                    description: { type: string, description: "The description of the guest" }
-                    owner: { type: string, description: "The owner of the guest" }
-                    guestUrl: { type: string, description: "The URL of the guest" }
-                    category: { type: string, description: "The category of the guest" }
-                    status: { type: string, enum: ['pending', 'approved', 'rejected'], description: "The status of the guest" }
-*/
-router.delete("/:id", service.deleteGuest);
+router.put("/:id", updateGuest);
+
+router.delete("/:id", deleteGuest);
 
 module.exports = router;

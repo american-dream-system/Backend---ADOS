@@ -12,6 +12,7 @@ const path = require("path");
 const swaggerUi = require("swagger-ui-express");
 const ApiError = require("./src/utils/ApiError");
 const GlobalError = require("./src/middlewares/error");
+const ngrok = require("@ngrok/ngrok");
 
 const app = express();
 app.use(express.json());
@@ -56,3 +57,13 @@ process.on("unhandledRejection", (err) => {
         process.exit(1);
     });
 });
+
+
+// Get your endpoint online in dev mode
+if (process.env.NODE_ENV === "development") {
+    ngrok
+        .connect({ addr: process.env.PORT, authtoken_from_env: true })
+        .then((listener) =>
+            console.log(`Ingress established at: ${listener.url()}`),
+        );
+}

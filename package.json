@@ -23,6 +23,7 @@
     "test": "npm test"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@ngrok/ngrok": "^1.7.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^18.0.5",

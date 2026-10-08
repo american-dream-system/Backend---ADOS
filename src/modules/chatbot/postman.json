@@ -1,0 +1,248 @@
+{
+  "info": {
+    "name": "American Dream - Chatbot API (Gemini)",
+    "_postman_id": "chatbot-gemini-american-dream",
+    "description": "Server-side AI Chatbot powered by Google Gemini with function calling and live database interaction for American Dream Kids Area & Restaurant.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9500",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "session-test-12345",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Info",
+      "item": [
+        {
+          "name": "1. Chatbot Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "health"]
+            }
+          }
+        },
+        {
+          "name": "2. Get Available AI Tools",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/tools",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "tools"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "item": [
+        {
+          "name": "3. Create New Chat Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guestName\": \"أحمد هشام\",\n  \"guestPhone\": \"01012345678\",\n  \"title\": \"استفسار عن تذاكر وحجز طاولة\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/session",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "session"]
+            }
+          }
+        },
+        {
+          "name": "4. List Recent Sessions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/sessions?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "sessions"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Get Session History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/session/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "session", "{{sessionId}}"]
+            }
+          }
+        },
+        {
+          "name": "6. Delete Chat Session",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/session/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "session", "{{sessionId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat Conversations & Tools",
+      "item": [
+        {
+          "name": "7. General Inquiry (Working Hours & Location)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"مرحبا، ما هي مواعيد العمل لديكم وأين موقعكم؟\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/message",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "message"]
+            }
+          }
+        },
+        {
+          "name": "8. Inquire About Tickets (Calls getTickets)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"ما هي أسعار تذاكر الألعاب المتاحة لديكم ومناطق اللعب؟\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/message",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "message"]
+            }
+          }
+        },
+        {
+          "name": "9. Inquire About Restaurant Menu (Calls getMenuItems)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"حابب أعرف قائمة الطعام للأطباق المميزة والبرجر والبيتزا وأسعارهم\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/message",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "message"]
+            }
+          }
+        },
+        {
+          "name": "10. Check Table Availability (Calls checkTableAvailability)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"هل متوفر طاولة عائلية يوم 2026-10-25 الساعة 7:00 PM؟\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/message",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "message"]
+            }
+          }
+        },
+        {
+          "name": "11. Book Table via AI (Calls bookTable)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"احجز لي طاولة عائلية في منطقة Family 1 لـ 4 أفراد يوم 2026-10-25 الساعة 8:00 PM باسم أحمد هشام ورقم 01012345678\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/message",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "message"]
+            }
+          }
+        },
+        {
+          "name": "12. Track Booking or Order (Calls checkOrderStatus)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"عايز استعلم عن حالة الحجز بتاعي بكود TB-123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chatbot/message",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chatbot", "message"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,238 @@
+{
+  "info": {
+    "_postman_id": "guests-auth-module-ad",
+    "name": "American Dream - Guest Auth & Profile Module",
+    "description": "Guest Authentication (Sign up, Login, Forget password, Reset code, Verify code, Reset password, Refresh token, JWT access token, and Profile)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Sign Up (تسجيل حساب جديد)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    var res = pm.response.json();",
+              "    if (res.token) pm.collectionVariables.set('token', res.token);",
+              "    if (res.refreshToken) pm.collectionVariables.set('refreshToken', res.refreshToken);",
+              "    if (res.data && res.data._id) pm.collectionVariables.set('guestId', res.data._id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"أحمد محمود\",\n  \"email\": \"guest.test@americandream.eg\",\n  \"phone\": \"01012345678\",\n  \"password\": \"Secret123456\",\n  \"passwordConfirm\": \"Secret123456\",\n  \"age\": \"28\",\n  \"gender\": \"male\",\n  \"children\": [\n    {\n      \"name\": \"سليم\",\n      \"age\": \"5\",\n      \"gender\": \"male\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/guests/signup",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests", "signup"]
+        }
+      }
+    },
+    {
+      "name": "2. Login (تسجيل الدخول)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var res = pm.response.json();",
+              "    if (res.token) pm.collectionVariables.set('token', res.token);",
+              "    if (res.refreshToken) pm.collectionVariables.set('refreshToken', res.refreshToken);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"guest.test@americandream.eg\",\n  \"password\": \"Secret123456\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/guests/login",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests", "login"]
+        }
+      }
+    },
+    {
+      "name": "3. Get My Profile (الملف الشخصي المحمي بالـ JWT)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/guests/me",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests", "me"]
+        }
+      }
+    },
+    {
+      "name": "4. Refresh Token (تجديد التوكن)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var res = pm.response.json();",
+              "    if (res.token) pm.collectionVariables.set('token', res.token);",
+              "    if (res.refreshToken) pm.collectionVariables.set('refreshToken', res.refreshToken);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/guests/refresh-token",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests", "refresh-token"]
+        }
+      }
+    },
+    {
+      "name": "5. Forget Password (إرسال كود التحقق للإيميل)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"guest.test@americandream.eg\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/guests/forgot-password",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests", "forgot-password"]
+        }
+      }
+    },
+    {
+      "name": "6. Verify Reset Code (التحقق من كود الـ 6 أرقام)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"guest.test@americandream.eg\",\n  \"resetCode\": \"123456\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/guests/verify-code",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests", "verify-code"]
+        }
+      }
+    },
+    {
+      "name": "7. Reset Password (تعيين كلمة مرور جديدة)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    var res = pm.response.json();",
+              "    if (res.token) pm.collectionVariables.set('token', res.token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"guest.test@americandream.eg\",\n  \"newPassword\": \"NewPassword123\",\n  \"newPasswordConfirm\": \"NewPassword123\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/guests/reset-password",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests", "reset-password"]
+        }
+      }
+    },
+    {
+      "name": "8. Get All Guests (عرض قائمة الضيوف)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/guests",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests"]
+        }
+      }
+    },
+    {
+      "name": "9. Get Guest By ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/guests/{{guestId}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests", "{{guestId}}"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:9500",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "guestId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

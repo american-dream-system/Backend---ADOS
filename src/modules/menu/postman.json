@@ -1,0 +1,230 @@
+{
+  "info": {
+    "_postman_id": "menu-module-collection-ad",
+    "name": "American Dream - Menu & Food Delivery Module",
+    "description": "APIs for American Dream Restaurant Menu, Food Products, Ordering, and Delivery",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Seed Restaurant Menu",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/menu/seed?force=true",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu", "seed"],
+          "query": [
+            { "key": "force", "value": "true", "description": "Reset and re-seed all 18 default dishes" }
+          ]
+        },
+        "description": "Pre-populates the database with dishes and items matching the client website"
+      }
+    },
+    {
+      "name": "Get All Menu Items",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/menu",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu"]
+        },
+        "description": "Retrieve all menu products"
+      }
+    },
+    {
+      "name": "Get Menu Items by Category",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/menu?category=burgers",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu"],
+          "query": [
+            { "key": "category", "value": "burgers" }
+          ]
+        },
+        "description": "Filter menu items by category: burgers, pizza, grills, drinks, coffee, sweets, meals"
+      }
+    },
+    {
+      "name": "Search Menu Items",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/menu?search=burger",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu"],
+          "query": [
+            { "key": "search", "value": "burger" }
+          ]
+        },
+        "description": "Search in Arabic and English titles and descriptions"
+      }
+    },
+    {
+      "name": "Get Categories Breakdown",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/menu/categories",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu", "categories"]
+        },
+        "description": "Aggregated list of categories with item counts"
+      }
+    },
+    {
+      "name": "Create Menu Item",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nameEn\": \"Smoky BBQ Pulled Beef Burger\",\n  \"nameAr\": \"برجر اللحم المدخن بصلصة الباربكيو\",\n  \"descEn\": \"Slow-cooked tender beef brisket with hickory barbecue glaze and crisp onion rings\",\n  \"descAr\": \"لحم بقري مدخن ومطهو ببطء مع صوص الباربكيو وحلقات البصل المقرمشة\",\n  \"price\": 210,\n  \"priceAfterDiscount\": 190,\n  \"category\": \"burgers\",\n  \"rating\": 4.9,\n  \"image\": \"https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&auto=format&fit=crop&q=80\",\n  \"isChefSpecial\": true,\n  \"available\": true\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/menu",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu"]
+        },
+        "description": "Create a new dish with full Arabic validation"
+      }
+    },
+    {
+      "name": "Get Menu Item By ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/menu/:id",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu", ":id"],
+          "variable": [
+            { "key": "id", "value": "65f000000000000000000001" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Update Menu Item",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"price\": 195,\n  \"priceAfterDiscount\": 175,\n  \"isChefSpecial\": true\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/menu/:id",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu", ":id"],
+          "variable": [
+            { "key": "id", "value": "65f000000000000000000001" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Delete Menu Item",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/menu/:id",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu", ":id"],
+          "variable": [
+            { "key": "id", "value": "65f000000000000000000001" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Place Food / Delivery Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerName\": \"أحمد محمود\",\n  \"customerPhone\": \"01012345678\",\n  \"deliveryAddress\": \"حي النزهة - طريق البلاجات - الإسماعيلية\",\n  \"deliveryNotes\": \"يرجى توفير أدوات مائدة وصوص إضافي\",\n  \"orderType\": \"delivery\",\n  \"items\": [\n    {\n      \"nameEn\": \"Artisanal Brioche Cheeseburger Meal\",\n      \"nameAr\": \"وجبة برجر البريوش بالجبنة الفاخرة\",\n      \"price\": 185,\n      \"quantity\": 2\n    },\n    {\n      \"nameEn\": \"Fresh Mango Sunshine Smoothie\",\n      \"nameAr\": \"سموذي المانجو الطازج\",\n      \"price\": 65,\n      \"quantity\": 1\n    }\n  ],\n  \"paymentMethod\": \"cod\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/menu/order",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu", "order"]
+        },
+        "description": "Create a food order / delivery order with auto-generated order code"
+      }
+    },
+    {
+      "name": "Get All Food Orders",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/menu/orders?page=1&limit=20",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu", "orders"]
+        }
+      }
+    },
+    {
+      "name": "Get Order By ID or Tracking Code",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/menu/orders/:id",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu", "orders", ":id"],
+          "variable": [
+            { "key": "id", "value": "AD-DLV-1234" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Update Order Status",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"preparing\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/menu/orders/:id/status",
+          "host": ["{{base_url}}"],
+          "path": ["api", "menu", "orders", ":id", "status"],
+          "variable": [
+            { "key": "id", "value": "AD-DLV-1234" }
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:9500",
+      "type": "string"
+    }
+  ]
+}

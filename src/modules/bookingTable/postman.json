@@ -1,0 +1,326 @@
+{
+  "info": {
+    "_postman_id": "b7f9a2e3-6c45-4b8a-9213-bookingtable01",
+    "name": "American Dream - Booking Table Module API",
+    "description": "Complete Postman collection for table reservation, area selection, availability checks, and status management in American Dream Restaurant & Cafe.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9500",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bookingCode",
+      "value": "TB-123456",
+      "type": "string"
+    },
+    {
+      "key": "guestId",
+      "value": "6ac71cf13bfa61ace198d027",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Book a Table (Roof Area - 4 Seats)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    var res = pm.response.json();",
+              "    if (res.data) {",
+              "        pm.collectionVariables.set('bookingId', res.data._id);",
+              "        pm.collectionVariables.set('bookingCode', res.data.bookingCode);",
+              "        console.log('Saved bookingCode:', res.data.bookingCode);",
+              "        console.log('Saved bookingId:', res.data._id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"guest\": \"{{guestId}}\",\n  \"guestName\": \"Ahmed Mohamed\",\n  \"guestPhone\": \"01012345678\",\n  \"area\": \"Roof\",\n  \"date\": \"2026-10-24\",\n  \"time\": \"6:00 PM\",\n  \"numberOfPerson\": 4,\n  \"notes\": \"Sunset view, canal edge preference\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/booking-table",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "booking-table"
+          ]
+        },
+        "description": "Books a table with Step 1 Area (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area) and Step 2 Table details (numberOfPerson, date, time, notes)."
+      },
+      "response": []
+    },
+    {
+      "name": "2. Book a Table with Phone (Guest Auto-create)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Sarah Mahmoud\",\n  \"phone\": \"01198765432\",\n  \"area\": \"Family 1\",\n  \"date\": \"2026-10-25\",\n  \"time\": \"3:30 PM\",\n  \"numberOfPerson\": 6,\n  \"notes\": \"Baby chair needed, near soft play area\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/booking-table",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "booking-table"
+          ]
+        },
+        "description": "Frictionless booking with phone and name without requiring existing guest ID."
+      },
+      "response": []
+    },
+    {
+      "name": "3. Check Area & Time Slot Availability",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/booking-table/availability?date=2026-10-24&area=Roof&time=6:00 PM",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "booking-table",
+            "availability"
+          ],
+          "query": [
+            {
+              "key": "date",
+              "value": "2026-10-24"
+            },
+            {
+              "key": "area",
+              "value": "Roof"
+            },
+            {
+              "key": "time",
+              "value": "6:00 PM"
+            }
+          ]
+        },
+        "description": "Checks number of currently booked tables and seats for selected date, area, and time slot."
+      },
+      "response": []
+    },
+    {
+      "name": "4. Get All Table Bookings (Paginated & Filterable)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/booking-table?page=1&limit=10",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "booking-table"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            },
+            {
+              "key": "area",
+              "value": "Roof",
+              "disabled": true
+            },
+            {
+              "key": "status",
+              "value": "confirmed",
+              "disabled": true
+            },
+            {
+              "key": "date",
+              "value": "2026-10-24",
+              "disabled": true
+            }
+          ]
+        },
+        "description": "List all table reservations with guest details."
+      },
+      "response": []
+    },
+    {
+      "name": "5. Get Booking by Reservation Code (TB-XXXXXX)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/booking-table/code/{{bookingCode}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "booking-table",
+            "code",
+            "{{bookingCode}}"
+          ]
+        },
+        "description": "Finds table reservation by unique reservation code."
+      },
+      "response": []
+    },
+    {
+      "name": "6. Get Booking by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/booking-table/{{bookingId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "booking-table",
+            "{{bookingId}}"
+          ]
+        },
+        "description": "Retrieves table reservation by MongoDB ObjectId."
+      },
+      "response": []
+    },
+    {
+      "name": "7. Get All Bookings for a Guest",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/booking-table/guest/{{guestId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "booking-table",
+            "guest",
+            "{{guestId}}"
+          ]
+        },
+        "description": "Retrieves all table bookings made by a specific guest."
+      },
+      "response": []
+    },
+    {
+      "name": "8. Update Booking Details",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"numberOfPerson\": 6,\n  \"time\": \"7:30 PM\",\n  \"notes\": \"Increased party size to 6\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/booking-table/{{bookingId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "booking-table",
+            "{{bookingId}}"
+          ]
+        },
+        "description": "Updates date, time, party size, area, or special requests."
+      },
+      "response": []
+    },
+    {
+      "name": "9. Update Booking Status (Confirm / Cancel)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"confirmed\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/booking-table/{{bookingId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "booking-table",
+            "{{bookingId}}",
+            "status"
+          ]
+        },
+        "description": "Updates reservation status: pending, confirmed, cancelled."
+      },
+      "response": []
+    },
+    {
+      "name": "10. Delete / Cancel Table Reservation",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/booking-table/{{bookingId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "booking-table",
+            "{{bookingId}}"
+          ]
+        },
+        "description": "Cancels and deletes a table reservation."
+      },
+      "response": []
+    }
+  ]
+}

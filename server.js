@@ -7,6 +7,11 @@ const swaggerSpec = require("./src/config/swagger");
 const mediaRoutes = require("./src/modules/media/routes");
 const ticketsRoutes = require("./src/modules/tickets/route");
 const guestsRoutes = require("./src/modules/guests/route");
+const authRoutes = require("./src/modules/auth/routes");
+const packageRoutes = require("./src/modules/packges/routes");
+const buyingRoutes = require("./src/modules/buying/routes");
+const bookingTableRoutes = require("./src/modules/bookingTable/routes");
+const menuRoutes = require("./src/modules/menu/routes");
 const morgan = require("morgan");
 const path = require("path");
 const swaggerUi = require("swagger-ui-express");
@@ -28,9 +33,18 @@ app.use(
 ); //swagger docs
 
 // Mount routes
+app.use("/api/auth", authRoutes);
 app.use("/api/guests", guestsRoutes);
-// app.use("/api/tickets", ticketsRoutes);
+app.use("/api/tickets", ticketsRoutes);
 app.use("/api/media", mediaRoutes);
+app.use("/api/packages", packageRoutes);
+app.use("/api/packges", packageRoutes);
+app.use("/api/buying", buyingRoutes);
+app.use("/api/orders", buyingRoutes);
+app.use("/api/booking-table", bookingTableRoutes);
+app.use("/api/bookingTable", bookingTableRoutes);
+app.use("/api/menu", menuRoutes);
+app.use("/api/products", menuRoutes);
 
 // Not found route
 app.use((req, res, next) => {

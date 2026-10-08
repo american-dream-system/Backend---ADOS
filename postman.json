@@ -1,0 +1,355 @@
+{
+  "info": {
+    "_postman_id": "a5e8c1b2-7d34-4a9f-8632-buyingmodule01",
+    "name": "American Dream - Buying Module API",
+    "description": "Complete Postman collection for purchasing, tracking, verifying, and redeeming tickets and packages in American Dream OS (ADOS).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9500",
+      "type": "string"
+    },
+    {
+      "key": "buyingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderCode",
+      "value": "PZ-123456",
+      "type": "string"
+    },
+    {
+      "key": "ticketId",
+      "value": "6ac71cf13bfa61ace198d028",
+      "type": "string"
+    },
+    {
+      "key": "packageId",
+      "value": "6ac71cf13bfa61ace198d029",
+      "type": "string"
+    },
+    {
+      "key": "guestId",
+      "value": "6ac71cf13bfa61ace198d027",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Create Purchase (Tickets & Packages)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    var res = pm.response.json();",
+              "    if (res.data) {",
+              "        pm.collectionVariables.set('buyingId', res.data._id);",
+              "        pm.collectionVariables.set('orderCode', res.data.orderCode);",
+              "        console.log('Saved orderCode:', res.data.orderCode);",
+              "        console.log('Saved buyingId:', res.data._id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"guest\": \"{{guestId}}\",\n  \"guestName\": \"Ahmed Mohamed\",\n  \"guestPhone\": \"01012345678\",\n  \"tickets\": [\n    {\n      \"ticket\": \"{{ticketId}}\",\n      \"quantity\": 2\n    }\n  ],\n  \"packages\": [\n    {\n      \"package\": \"{{packageId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"paymentMethod\": \"cash\",\n  \"paymentStatus\": \"pending\",\n  \"notes\": \"Weekend family pass\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/buying",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "buying"
+          ]
+        },
+        "description": "Creates a purchase for tickets and packages. Automatically calculates total price, points earned, creates unique PZ-XXXXXX QR code, and auto-saves buyingId and orderCode to collection variables."
+      },
+      "response": []
+    },
+    {
+      "name": "2. Create Purchase (Tickets Only)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"guestName\": \"Mariam Hassan\",\n  \"guestPhone\": \"01122334455\",\n  \"tickets\": [\n    {\n      \"ticket\": \"{{ticketId}}\",\n      \"quantity\": 3\n    }\n  ],\n  \"paymentMethod\": \"card\",\n  \"paymentStatus\": \"paid\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/buying",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "buying"
+          ]
+        },
+        "description": "Purchases tickets only without packages."
+      },
+      "response": []
+    },
+    {
+      "name": "3. Create Purchase (Packages with InstaPay Proof)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"guestName\": \"Omar Abdelrahman\",\n  \"guestPhone\": \"01234567890\",\n  \"packages\": [\n    {\n      \"package\": \"{{packageId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"paymentMethod\": \"instapay\",\n  \"paymentStatus\": \"pending\",\n  \"paymentProof\": \"instapay_receipt_09823.jpeg\",\n  \"notes\": \"Transfer reference IPA-77821\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/buying",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "buying"
+          ]
+        },
+        "description": "Purchases a package using InstaPay or Vodafone Cash with proof-of-payment."
+      },
+      "response": []
+    },
+    {
+      "name": "4. Get All Purchases (Paginated & Filterable)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/buying?page=1&limit=10",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "buying"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1",
+              "description": "Page number"
+            },
+            {
+              "key": "limit",
+              "value": "10",
+              "description": "Items per page"
+            },
+            {
+              "key": "status",
+              "value": "confirmed",
+              "disabled": true,
+              "description": "Filter by order status: pending, confirmed, completed, cancelled"
+            },
+            {
+              "key": "paymentStatus",
+              "value": "paid",
+              "disabled": true,
+              "description": "Filter by payment status: pending, paid, failed, refunded"
+            },
+            {
+              "key": "used",
+              "value": "false",
+              "disabled": true,
+              "description": "Filter by redemption status: true / false"
+            },
+            {
+              "key": "paymentMethod",
+              "value": "cash",
+              "disabled": true,
+              "description": "Filter by payment method: cash, card, instapay, vodafone_cash, points"
+            }
+          ]
+        },
+        "description": "Retrieve list of all purchases, populated with guest, ticket, and package details."
+      },
+      "response": []
+    },
+    {
+      "name": "5. Get Purchase by Order Code (QR Code / Gate Scanner)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/buying/code/{{orderCode}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "buying",
+            "code",
+            "{{orderCode}}"
+          ]
+        },
+        "description": "Lookup pass details by unique turnstile QR code (e.g. PZ-XXXXXX)."
+      },
+      "response": []
+    },
+    {
+      "name": "6. Get Purchase by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/buying/{{buyingId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "buying",
+            "{{buyingId}}"
+          ]
+        },
+        "description": "Retrieve full purchase document by MongoDB ObjectId."
+      },
+      "response": []
+    },
+    {
+      "name": "7. Get Purchases by Guest ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/buying/guest/{{guestId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "buying",
+            "guest",
+            "{{guestId}}"
+          ]
+        },
+        "description": "Get all order records for a specific registered guest."
+      },
+      "response": []
+    },
+    {
+      "name": "8. Redeem Pass by Order Code (Gate Turnstile Check-in)",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/buying/code/{{orderCode}}/redeem",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "buying",
+            "code",
+            "{{orderCode}}",
+            "redeem"
+          ]
+        },
+        "description": "Gate scanner turnstile redemption by code. Sets used = true, usedAt = timestamp, status = completed. Rejects with 400 if already used."
+      },
+      "response": []
+    },
+    {
+      "name": "9. Redeem Pass by MongoDB ID",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/buying/{{buyingId}}/redeem",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "buying",
+            "{{buyingId}}",
+            "redeem"
+          ]
+        },
+        "description": "Alternative redemption endpoint by MongoDB ObjectId."
+      },
+      "response": []
+    },
+    {
+      "name": "10. Update Purchase Status / Payment",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"paymentStatus\": \"paid\",\n  \"status\": \"confirmed\",\n  \"notes\": \"Payment verified by cashier\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/buying/{{buyingId}}/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "buying",
+            "{{buyingId}}",
+            "status"
+          ]
+        },
+        "description": "Updates paymentStatus, order status, or notes on a purchase."
+      },
+      "response": []
+    },
+    {
+      "name": "11. Delete / Cancel Purchase",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/buying/{{buyingId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "buying",
+            "{{buyingId}}"
+          ]
+        },
+        "description": "Deletes or cancels a purchase record by ID."
+      },
+      "response": []
+    }
+  ]
+}

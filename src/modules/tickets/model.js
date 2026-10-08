@@ -1,11 +1,23 @@
 const mongoose = require("mongoose");
 
 const ticketSchema = new mongoose.Schema({
-    name: {
+    title: {
         type: String,
         required: true
     },
+    used: {
+        type: Boolean,
+        default: false
+    },
+    pointsGets: {
+        type: Number,
+        required: true
+    },
     price: {
+        type: Number,
+        required: true
+    },
+    priceAfterDiscount: {
         type: Number,
         required: true
     },
@@ -13,27 +25,31 @@ const ticketSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    expire: {
-        type: Date,
+    page: {
+        type: String,
+        enum: ["funZone", "kidsArea", "challengeZone", "adventureZone"],
         required: true
     },
-    children: {
+    priceType: {
+        type: String,
+        enum: ["hour", "game"],
+        required: true
+    },
+    hourPrice: {
         type: Number,
         required: true
     },
-    adults: {
-        type: Number,
-        required: true
+    gamesPrice: {
+        type: Number
     },
-    type: {
-        type: String,
-        enum: ["one-day", "one-time", "afternoon", "full-day", "annual"],
-        required: true
-    },
-    duration: {
+    age: {
         type: String,
         required: true
     },
+    image: {
+        type: String,
+        required: true
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model("ticket", ticketSchema);

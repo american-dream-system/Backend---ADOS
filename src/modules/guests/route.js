@@ -1,16 +1,32 @@
 const express = require("express");
 const router = express.Router();
-const { createGuest, getAllGuests, getGuestById, updateGuest, deleteGuest } = require("./services");
 
+const {
+    createGuest,
+    getAllGuests,
+    getGuestById,
+    updateGuest,
+    deleteGuest
+} = require("./services");
 
-router.post("/", createGuest);
+const {
+    createGuestValidator,
+    getGuestValidator,
+    updateGuestValidator,
+    deleteGuestValidator
+} = require("./validator");
 
-router.get("/", getAllGuests);
+// ==========================================
+// GUEST CRUD ROUTES
+// ==========================================
 
-router.get("/:id", getGuestById);
+router.route("/")
+    .post(createGuestValidator, createGuest)
+    .get(getAllGuests);
 
-router.put("/:id", updateGuest);
-
-router.delete("/:id", deleteGuest);
+router.route("/:id")
+    .get(getGuestValidator, getGuestById)
+    .put(updateGuestValidator, updateGuest)
+    .delete(deleteGuestValidator, deleteGuest);
 
 module.exports = router;

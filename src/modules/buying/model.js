@@ -81,15 +81,28 @@ const buyingSchema = new mongoose.Schema({
     },
     paymentMethod: {
         type: String,
-        enum: ["cash", "card", "instapay", "vodafone_cash", "points"],
+        enum: ["cash", "card", "instapay", "vodafone_cash", "points", "money"],
         default: "cash"
     },
     paymentStatus: {
         type: String,
-        enum: ["pending", "paid", "failed", "refunded"],
+        enum: ["pending", "pending_verification", "paid", "failed", "refunded"],
         default: "pending"
     },
     paymentProof: {
+        type: String
+    },
+    senderAccount: {
+        type: String,
+        trim: true
+    },
+    paymentVerifiedAt: {
+        type: Date
+    },
+    verifiedBy: {
+        type: String
+    },
+    rejectionReason: {
         type: String
     },
     status: {

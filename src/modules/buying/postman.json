@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "a5e8c1b2-7d34-4a9f-8632-buyingmodule01",
-    "name": "American Dream - Buying Module API",
-    "description": "Complete Postman collection for purchasing, tracking, verifying, and redeeming tickets and packages in American Dream OS (ADOS).",
+    "_postman_id": "a5e8c1b2-7d34-4a9f-8632-buyingmodule02",
+    "name": "American Dream - Buying & Payment Module API",
+    "description": "Complete Postman collection for purchasing tickets/packages, manual payments (InstaPay & Vodafone Cash with receipt upload), Cash at Gate, and Admin payment verification.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -18,338 +18,233 @@
     },
     {
       "key": "orderCode",
-      "value": "PZ-123456",
-      "type": "string"
-    },
-    {
-      "key": "ticketId",
-      "value": "6ac71cf13bfa61ace198d028",
-      "type": "string"
-    },
-    {
-      "key": "packageId",
-      "value": "6ac71cf13bfa61ace198d029",
-      "type": "string"
-    },
-    {
-      "key": "guestId",
-      "value": "6ac71cf13bfa61ace198d027",
+      "value": "",
       "type": "string"
     }
   ],
   "item": [
     {
-      "name": "1. Create Purchase (Tickets & Packages)",
-      "event": [
+      "name": "Payment Accounts & Public Info",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "if (pm.response.code === 201) {",
-              "    var res = pm.response.json();",
-              "    if (res.data) {",
-              "        pm.collectionVariables.set('buyingId', res.data._id);",
-              "        pm.collectionVariables.set('orderCode', res.data.orderCode);",
-              "        console.log('Saved orderCode:', res.data.orderCode);",
-              "        console.log('Saved buyingId:', res.data._id);",
-              "    }",
-              "}"
-            ],
-            "type": "text/javascript"
+          "name": "1. Get Payment Accounts (InstaPay & Vodafone Cash)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/buying/payment-accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "buying", "payment-accounts"]
+            }
           }
         }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"guest\": \"{{guestId}}\",\n  \"guestName\": \"Ahmed Mohamed\",\n  \"guestPhone\": \"01012345678\",\n  \"tickets\": [\n    {\n      \"ticket\": \"{{ticketId}}\",\n      \"quantity\": 2\n    }\n  ],\n  \"packages\": [\n    {\n      \"package\": \"{{packageId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"paymentMethod\": \"cash\",\n  \"paymentStatus\": \"pending\",\n  \"notes\": \"Weekend family pass\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/api/buying",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "buying"
-          ]
-        },
-        "description": "Creates a purchase for tickets and packages. Automatically calculates total price, points earned, creates unique PZ-XXXXXX QR code, and auto-saves buyingId and orderCode to collection variables."
-      },
-      "response": []
+      ]
     },
     {
-      "name": "2. Create Purchase (Tickets Only)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"guestName\": \"Mariam Hassan\",\n  \"guestPhone\": \"01122334455\",\n  \"tickets\": [\n    {\n      \"ticket\": \"{{ticketId}}\",\n      \"quantity\": 3\n    }\n  ],\n  \"paymentMethod\": \"card\",\n  \"paymentStatus\": \"paid\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/api/buying",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "buying"
-          ]
-        },
-        "description": "Purchases tickets only without packages."
-      },
-      "response": []
-    },
-    {
-      "name": "3. Create Purchase (Packages with InstaPay Proof)",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"guestName\": \"Omar Abdelrahman\",\n  \"guestPhone\": \"01234567890\",\n  \"packages\": [\n    {\n      \"package\": \"{{packageId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"paymentMethod\": \"instapay\",\n  \"paymentStatus\": \"pending\",\n  \"paymentProof\": \"instapay_receipt_09823.jpeg\",\n  \"notes\": \"Transfer reference IPA-77821\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/api/buying",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "buying"
-          ]
-        },
-        "description": "Purchases a package using InstaPay or Vodafone Cash with proof-of-payment."
-      },
-      "response": []
-    },
-    {
-      "name": "4. Get All Purchases (Paginated & Filterable)",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/buying?page=1&limit=10",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "buying"
-          ],
-          "query": [
+      "name": "Customer Purchasing Flows",
+      "item": [
+        {
+          "name": "2. Create Purchase - Cash on Arrival (No proof required)",
+          "event": [
             {
-              "key": "page",
-              "value": "1",
-              "description": "Page number"
-            },
-            {
-              "key": "limit",
-              "value": "10",
-              "description": "Items per page"
-            },
-            {
-              "key": "status",
-              "value": "confirmed",
-              "disabled": true,
-              "description": "Filter by order status: pending, confirmed, completed, cancelled"
-            },
-            {
-              "key": "paymentStatus",
-              "value": "paid",
-              "disabled": true,
-              "description": "Filter by payment status: pending, paid, failed, refunded"
-            },
-            {
-              "key": "used",
-              "value": "false",
-              "disabled": true,
-              "description": "Filter by redemption status: true / false"
-            },
-            {
-              "key": "paymentMethod",
-              "value": "cash",
-              "disabled": true,
-              "description": "Filter by payment method: cash, card, instapay, vodafone_cash, points"
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var res = pm.response.json();",
+                  "    if (res.data) {",
+                  "        pm.collectionVariables.set('buyingId', res.data._id);",
+                  "        pm.collectionVariables.set('orderCode', res.data.orderCode);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
             }
-          ]
-        },
-        "description": "Retrieve list of all purchases, populated with guest, ticket, and package details."
-      },
-      "response": []
-    },
-    {
-      "name": "5. Get Purchase by Order Code (QR Code / Gate Scanner)",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/buying/code/{{orderCode}}",
-          "host": [
-            "{{baseUrl}}"
           ],
-          "path": [
-            "api",
-            "buying",
-            "code",
-            "{{orderCode}}"
-          ]
-        },
-        "description": "Lookup pass details by unique turnstile QR code (e.g. PZ-XXXXXX)."
-      },
-      "response": []
-    },
-    {
-      "name": "6. Get Purchase by ID",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/buying/{{buyingId}}",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "buying",
-            "{{buyingId}}"
-          ]
-        },
-        "description": "Retrieve full purchase document by MongoDB ObjectId."
-      },
-      "response": []
-    },
-    {
-      "name": "7. Get Purchases by Guest ID",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/buying/guest/{{guestId}}",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "buying",
-            "guest",
-            "{{guestId}}"
-          ]
-        },
-        "description": "Get all order records for a specific registered guest."
-      },
-      "response": []
-    },
-    {
-      "name": "8. Redeem Pass by Order Code (Gate Turnstile Check-in)",
-      "request": {
-        "method": "PATCH",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/buying/code/{{orderCode}}/redeem",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "buying",
-            "code",
-            "{{orderCode}}",
-            "redeem"
-          ]
-        },
-        "description": "Gate scanner turnstile redemption by code. Sets used = true, usedAt = timestamp, status = completed. Rejects with 400 if already used."
-      },
-      "response": []
-    },
-    {
-      "name": "9. Redeem Pass by MongoDB ID",
-      "request": {
-        "method": "PATCH",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/buying/{{buyingId}}/redeem",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "buying",
-            "{{buyingId}}",
-            "redeem"
-          ]
-        },
-        "description": "Alternative redemption endpoint by MongoDB ObjectId."
-      },
-      "response": []
-    },
-    {
-      "name": "10. Update Purchase Status / Payment",
-      "request": {
-        "method": "PATCH",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guestName\": \"أحمد محمود\",\n  \"guestPhone\": \"01012345678\",\n  \"paymentMethod\": \"cash\",\n  \"tickets\": [\n    {\n      \"ticket\": \"pass-kids-area\",\n      \"quantity\": 2,\n      \"priceEgp\": 100\n    }\n  ],\n  \"notes\": \"الدفع نقداً عند البوابة\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/buying",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "buying"]
+            }
           }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"paymentStatus\": \"paid\",\n  \"status\": \"confirmed\",\n  \"notes\": \"Payment verified by cashier\"\n}"
         },
-        "url": {
-          "raw": "{{baseUrl}}/api/buying/{{buyingId}}/status",
-          "host": [
-            "{{baseUrl}}"
+        {
+          "name": "3. Create Purchase - InstaPay (With Proof & Sender Account)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var res = pm.response.json();",
+                  "    if (res.data) {",
+                  "        pm.collectionVariables.set('buyingId', res.data._id);",
+                  "        pm.collectionVariables.set('orderCode', res.data.orderCode);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
           ],
-          "path": [
-            "api",
-            "buying",
-            "{{buyingId}}",
-            "status"
-          ]
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guestName\": \"سارة علي\",\n  \"guestPhone\": \"01198765432\",\n  \"paymentMethod\": \"instapay\",\n  \"senderAccount\": \"sara@instapay\",\n  \"paymentProof\": \"/payments/sample-receipt.jpg\",\n  \"tickets\": [\n    {\n      \"ticket\": \"pass-adventure\",\n      \"quantity\": 1,\n      \"priceEgp\": 150\n    }\n  ],\n  \"notes\": \"تم التحويل عبر إنستاباي بنجاح\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/buying",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "buying"]
+            }
+          }
         },
-        "description": "Updates paymentStatus, order status, or notes on a purchase."
-      },
-      "response": []
+        {
+          "name": "4. Upload Payment Proof Later by Order ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentProof\": \"/payments/updated-receipt.jpg\",\n  \"senderAccount\": \"01099887766\",\n  \"paymentMethod\": \"vodafone_cash\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/buying/{{buyingId}}/proof",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "buying", "{{buyingId}}", "proof"]
+            }
+          }
+        },
+        {
+          "name": "5. Get Purchase Details by Order Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/buying/code/{{orderCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "buying", "code", "{{orderCode}}"]
+            }
+          }
+        }
+      ]
     },
     {
-      "name": "11. Delete / Cancel Purchase",
-      "request": {
-        "method": "DELETE",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/buying/{{buyingId}}",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "buying",
-            "{{buyingId}}"
-          ]
+      "name": "Admin & Cashier Verification",
+      "item": [
+        {
+          "name": "6. Admin: Get Orders Pending Receipt Verification",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/buying/pending-verification",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "buying", "pending-verification"]
+            }
+          }
         },
-        "description": "Deletes or cancels a purchase record by ID."
-      },
-      "response": []
+        {
+          "name": "7. Admin: Approve Manual Payment Proof",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/buying/{{buyingId}}/verify-payment",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "buying", "{{buyingId}}", "verify-payment"]
+            }
+          }
+        },
+        {
+          "name": "8. Admin: Reject Manual Payment Proof",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"reject\",\n  \"rejectionReason\": \"المبلغ المحول في الإيصال غير مطابق لإجمالي التذكرة\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/buying/{{buyingId}}/verify-payment",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "buying", "{{buyingId}}", "verify-payment"]
+            }
+          }
+        },
+        {
+          "name": "9. Cashier: Mark Cash Collected on Arrival (Gate Desk)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/buying/{{buyingId}}/mark-cash-collected",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "buying", "{{buyingId}}", "mark-cash-collected"]
+            }
+          }
+        },
+        {
+          "name": "10. Gate Turnstile: Redeem / Scan Pass by Code",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/buying/code/{{orderCode}}/redeem",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "buying", "code", "{{orderCode}}", "redeem"]
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -497,23 +497,31 @@ const placeOrder = async (req, res, next) => {
             deliveryNotes,
             orderType = "delivery",
             items = [],
-            paymentMethod = "cod"
+            paymentMethod = "cod",
+            paymentProof,
+            senderAccount,
+            senderPhoneOrAccount
         } = req.body;
 
-        if (!Array.isArray(items) || items.length === 0) {
+        let parsedItems = items;
+        if (typeof parsedItems === "string") {
+            try { parsedItems = JSON.parse(parsedItems); } catch (e) { parsedItems = []; }
+        }
+
+        if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
             return res.status(400).json({
                 success: false,
                 message: "قائمة الأصناف مطلوبة ويجب أن تحتوي على صنف واحد على الأقل"
             });
         }
 
-        // Generate unique order code
+        // Generate unique order code (AD-DLV-XXXX for delivery)
         const codeNumber = Math.floor(1000 + Math.random() * 9000);
         const orderCode = orderType === "delivery" ? `AD-DLV-${codeNumber}` : `ORD-${codeNumber}`;
 
         // Normalize items and compute totals
         let subtotal = 0;
-        const normalizedItems = items.map(item => {
+        const normalizedItems = parsedItems.map(item => {
             const price = Number(item.price) || 0;
             const quantity = Number(item.qty || item.quantity || 1);
             const lineTotal = price * quantity;
@@ -534,6 +542,16 @@ const placeOrder = async (req, res, next) => {
         const vatAmount = req.body.vatAmount !== undefined ? Number(req.body.vatAmount) : 0;
         const totalAmount = subtotal + deliveryFee + vatAmount;
 
+        // Auto determine payment status
+        let paymentStatus = req.body.paymentStatus;
+        if (!paymentStatus) {
+            if (paymentMethod === "instapay" || paymentMethod === "vodafone_cash") {
+                paymentStatus = paymentProof ? "pending_verification" : "pending";
+            } else {
+                paymentStatus = "pending";
+            }
+        }
+
         const newOrder = await menuOrderModel.create({
             orderCode,
             customerName: customerName || "Guest Customer",
@@ -547,6 +565,9 @@ const placeOrder = async (req, res, next) => {
             vatAmount,
             totalAmount,
             paymentMethod,
+            paymentStatus,
+            paymentProof,
+            senderAccount: senderAccount || senderPhoneOrAccount || "",
             status: "pending"
         });
 
@@ -630,30 +651,34 @@ const getOrderById = async (req, res, next) => {
 const updateOrderStatus = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status, paymentStatus } = req.body;
+        const updates = {};
 
-        const allowedStatuses = ["pending", "confirmed", "preparing", "out_for_delivery", "delivered", "cancelled"];
-        if (!allowedStatuses.includes(status)) {
-            return res.status(400).json({
-                success: false,
-                message: `حالة الطلب غير صالحة، الحالات المتاحة هي: ${allowedStatuses.join(", ")}`
-            });
+        if (status) {
+            const allowedStatuses = ["pending", "confirmed", "preparing", "out_for_delivery", "delivered", "cancelled"];
+            if (!allowedStatuses.includes(status)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `حالة الطلب غير صالحة، الحالات المتاحة هي: ${allowedStatuses.join(", ")}`
+                });
+            }
+            updates.status = status;
+        }
+
+        if (paymentStatus) {
+            const allowedPaymentStatuses = ["pending", "pending_verification", "paid", "failed"];
+            if (!allowedPaymentStatuses.includes(paymentStatus)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `حالة الدفع غير صالحة، الحالات المتاحة هي: ${allowedPaymentStatuses.join(", ")}`
+                });
+            }
+            updates.paymentStatus = paymentStatus;
         }
 
         let order;
-        if (id.startsWith("ORD-") || id.startsWith("AD-DLV-")) {
-            order = await menuOrderModel.findOneAndUpdate(
-                { orderCode: id },
-                { status },
-                { new: true }
-            );
-        } else {
-            order = await menuOrderModel.findByIdAndUpdate(
-                id,
-                { status },
-                { new: true }
-            );
-        }
+        const query = (id.startsWith("ORD-") || id.startsWith("AD-DLV-")) ? { orderCode: id } : { _id: id };
+        order = await menuOrderModel.findOneAndUpdate(query, updates, { new: true });
 
         if (!order) {
             return res.status(404).json({

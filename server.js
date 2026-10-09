@@ -90,5 +90,8 @@ if (process.env.NODE_ENV === "development") {
         .connect({ addr: process.env.PORT, authtoken_from_env: true })
         .then((listener) =>
             console.log(`Ingress established at: ${listener.url()}`),
-        );
+        )
+        .catch((err) => {
+            console.log(`Ngrok notice: ${err.message}`);
+        });
 }

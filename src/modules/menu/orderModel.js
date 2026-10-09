@@ -95,8 +95,15 @@ const menuOrderSchema = new mongoose.Schema({
     },
     paymentStatus: {
         type: String,
-        enum: ["pending", "paid", "failed"],
+        enum: ["pending", "pending_verification", "paid", "failed"],
         default: "pending"
+    },
+    paymentProof: {
+        type: String
+    },
+    senderAccount: {
+        type: String,
+        trim: true
     },
     status: {
         type: String,

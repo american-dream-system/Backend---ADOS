@@ -24,6 +24,8 @@ const {
     placeOrderValidator
 } = require("./validator");
 
+const { resizePaymentProofImage } = require("../buying/services");
+
 // @route POST /api/menu/seed - Seed items from UI
 router.post("/seed", seedMenu);
 
@@ -32,7 +34,13 @@ router.get("/categories", getCategories);
 
 // @route GET & POST for orders
 router.get("/orders", getAllOrders);
-router.post("/order", placeOrderValidator, placeOrder);
+router.post(
+    "/order",
+    uploadSingleImage("paymentProof"),
+    resizePaymentProofImage,
+    placeOrderValidator,
+    placeOrder
+);
 router.get("/orders/:id", getOrderById);
 router.put("/orders/:id/status", updateOrderStatus);
 

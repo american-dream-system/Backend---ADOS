@@ -48,28 +48,37 @@ const signup = async (req, res, next) => {
 // @access Public
 const login = async (req, res, next) => {
     try {
-        const { email, phone, identifier, password } = req.body;
-        const loginId = (email || phone || identifier || "").trim();
+        const { phone, identifier, email, password } = req.body;
+        const loginId = (phone || identifier || email || "").trim();
 
         if (!loginId || !password) {
             return res.status(400).json({
                 success: false,
-                message: "يرجى إدخال البريد الإلكتروني أو رقم الهاتف وكلمة المرور"
+                message: "يرجى إدخال رقم الهاتف وكلمة المرور"
             });
         }
 
-        // Find guest by email or phone
+        // Clean phone formatting if entered with +20 or spaces
+        let normalizedPhone = loginId.replace(/\s+/g, "");
+        if (normalizedPhone.startsWith("+20")) {
+            normalizedPhone = "0" + normalizedPhone.substring(3);
+        } else if (normalizedPhone.startsWith("20") && normalizedPhone.length === 12) {
+            normalizedPhone = "0" + normalizedPhone.substring(2);
+        }
+
+        // Find guest by phone (primary) or email
         const guest = await guestModel.findOne({
             $or: [
-                { email: loginId.toLowerCase() },
-                { phone: loginId }
+                { phone: loginId },
+                { phone: normalizedPhone },
+                { email: loginId.toLowerCase() }
             ]
         });
 
         if (!guest) {
             return res.status(401).json({
                 success: false,
-                message: "بيانات تسجيل الدخول غير صحيحة، يرجى التأكد من البريد أو الهاتف"
+                message: "بيانات تسجيل الدخول غير صحيحة، يرجى التأكد من رقم الهاتف أو كلمة المرور"
             });
         }
 
@@ -106,14 +115,28 @@ const login = async (req, res, next) => {
 // @access Public
 const forgetPassword = async (req, res, next) => {
     try {
-        const { email } = req.body;
-        const normalizedEmail = (email || "").toLowerCase().trim();
+        const { email, phone, identifier } = req.body;
+        const lookup = (phone || identifier || email || "").trim();
 
-        const guest = await guestModel.findOne({ email: normalizedEmail });
+        let normalizedPhone = lookup.replace(/\s+/g, "");
+        if (normalizedPhone.startsWith("+20")) {
+            normalizedPhone = "0" + normalizedPhone.substring(3);
+        } else if (normalizedPhone.startsWith("20") && normalizedPhone.length === 12) {
+            normalizedPhone = "0" + normalizedPhone.substring(2);
+        }
+
+        const guest = await guestModel.findOne({
+            $or: [
+                { phone: lookup },
+                { phone: normalizedPhone },
+                { email: lookup.toLowerCase() }
+            ]
+        });
+
         if (!guest) {
             return res.status(404).json({
                 success: false,
-                message: "لا يوجد حساب مسجل بهذا البريد الإلكتروني"
+                message: "لا يوجد حساب مسجل برقم الهاتف أو البريد الإلكتروني المدخل"
             });
         }
 
@@ -127,46 +150,40 @@ const forgetPassword = async (req, res, next) => {
         guest.passwordResetVerified = false;
         await guest.save({ validateBeforeSave: false });
 
-        console.log(`🔐 Password Reset Code for [${guest.email}]: ${resetCode}`);
+        console.log(`🔐 Password Reset Code for [${guest.phone || guest.email}]: ${resetCode}`);
 
-        // Send email via sendEmail
-        try {
-            await sendEmail({
-                to: guest.email,
-                subject: "كود إعادة تعيين كلمة المرور - American Dream",
-                html: `
-                    <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
-                        <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 8px;">American Dream</h2>
-                        <h3 style="color: #2563eb; text-align: center; margin-top: 0;">إعادة تعيين كلمة المرور</h3>
-                        <p style="color: #334155; font-size: 15px;">مرحباً <b>${guest.name}</b>،</p>
-                        <p style="color: #334155; font-size: 15px;">لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك في أمريكان دريم.</p>
-                        <p style="color: #334155; font-size: 15px;">كود التحقق الخاص بك هو:</p>
-                        <div style="text-align: center; margin: 24px 0;">
-                            <span style="display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #ffffff; background: linear-gradient(135deg, #1d4ed8, #3b82f6); padding: 12px 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(37,99,235,0.25);">${resetCode}</span>
+        // Send email via sendEmail if email exists
+        if (guest.email) {
+            try {
+                await sendEmail({
+                    to: guest.email,
+                    subject: "كود إعادة تعيين كلمة المرور - American Dream",
+                    html: `
+                        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+                            <h2 style="color: #1e3a8a; text-align: center; margin-bottom: 8px;">American Dream</h2>
+                            <h3 style="color: #2563eb; text-align: center; margin-top: 0;">إعادة تعيين كلمة المرور</h3>
+                            <p style="color: #334155; font-size: 15px;">مرحباً <b>${guest.name}</b>،</p>
+                            <p style="color: #334155; font-size: 15px;">لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك في أمريكان دريم.</p>
+                            <p style="color: #334155; font-size: 15px;">كود التحقق الخاص بك هو:</p>
+                            <div style="text-align: center; margin: 24px 0;">
+                                <span style="display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #ffffff; background: linear-gradient(135deg, #1d4ed8, #3b82f6); padding: 12px 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(37,99,235,0.25);">${resetCode}</span>
+                            </div>
+                            <p style="color: #64748b; font-size: 13px; text-align: center;">صلاحية هذا الكود 10 دقائق فقط من وقت الإرسال.</p>
+                            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+                            <p style="color: #94a3b8; font-size: 12px; text-align: center;">إذا لم تقم بطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذه الرسالة بأمان.</p>
                         </div>
-                        <p style="color: #64748b; font-size: 13px; text-align: center;">صلاحية هذا الكود 10 دقائق فقط من وقت الإرسال.</p>
-                        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-                        <p style="color: #94a3b8; font-size: 12px; text-align: center;">إذا لم تقم بطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذه الرسالة بأمان.</p>
-                    </div>
-                `
-            });
-        } catch (emailError) {
-            console.error("Email send error:", emailError.message);
-            if (process.env.NODE_ENV !== "development") {
-                guest.passwordResetCode = undefined;
-                guest.passwordResetExpires = undefined;
-                guest.passwordResetVerified = undefined;
-                await guest.save({ validateBeforeSave: false });
-                return res.status(500).json({
-                    success: false,
-                    message: "حدث خطأ أثناء إرسال البريد الإلكتروني، يرجى المحاولة لاحقاً"
+                    `
                 });
+            } catch (emailError) {
+                console.error("Email send error:", emailError.message);
             }
         }
 
         res.status(200).json({
             success: true,
-            message: "تم إرسال كود التحقق بنجاح إلى بريدك الإلكتروني",
+            message: guest.email 
+                ? "تم إرسال كود التحقق بنجاح إلى بريدك الإلكتروني"
+                : "تم إنشاء كود التحقق بنجاح",
             resetCode: process.env.NODE_ENV === "development" ? resetCode : undefined
         });
     } catch (error) {
@@ -179,8 +196,15 @@ const forgetPassword = async (req, res, next) => {
 // @access Public
 const verifyResetCode = async (req, res, next) => {
     try {
-        const { email, resetCode } = req.body;
-        const normalizedEmail = (email || "").toLowerCase().trim();
+        const { email, phone, identifier, resetCode } = req.body;
+        const lookup = (phone || identifier || email || "").trim();
+
+        let normalizedPhone = lookup.replace(/\s+/g, "");
+        if (normalizedPhone.startsWith("+20")) {
+            normalizedPhone = "0" + normalizedPhone.substring(3);
+        } else if (normalizedPhone.startsWith("20") && normalizedPhone.length === 12) {
+            normalizedPhone = "0" + normalizedPhone.substring(2);
+        }
 
         const hashedResetCode = crypto
             .createHash("sha256")
@@ -188,7 +212,11 @@ const verifyResetCode = async (req, res, next) => {
             .digest("hex");
 
         const guest = await guestModel.findOne({
-            email: normalizedEmail,
+            $or: [
+                { phone: lookup },
+                { phone: normalizedPhone },
+                { email: lookup.toLowerCase() }
+            ],
             passwordResetCode: hashedResetCode,
             passwordResetExpires: { $gt: new Date() }
         });
@@ -218,11 +246,22 @@ const verifyResetCode = async (req, res, next) => {
 // @access Public
 const resetPassword = async (req, res, next) => {
     try {
-        const { email, newPassword } = req.body;
-        const normalizedEmail = (email || "").toLowerCase().trim();
+        const { email, phone, identifier, newPassword } = req.body;
+        const lookup = (phone || identifier || email || "").trim();
+
+        let normalizedPhone = lookup.replace(/\s+/g, "");
+        if (normalizedPhone.startsWith("+20")) {
+            normalizedPhone = "0" + normalizedPhone.substring(3);
+        } else if (normalizedPhone.startsWith("20") && normalizedPhone.length === 12) {
+            normalizedPhone = "0" + normalizedPhone.substring(2);
+        }
 
         const guest = await guestModel.findOne({
-            email: normalizedEmail,
+            $or: [
+                { phone: lookup },
+                { phone: normalizedPhone },
+                { email: lookup.toLowerCase() }
+            ],
             passwordResetVerified: true
         });
 

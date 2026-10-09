@@ -1,8 +1,25 @@
 const { check, body } = require("express-validator");
 const validatorMiddleware = require("../../middlewares/validatorMiddlewar");
 
+// Helper middleware to parse JSON string fields if sent as multipart/form-data
+const parseFormDataJsonFields = (req, res, next) => {
+    if (typeof req.body.tickets === "string") {
+        try {
+            req.body.tickets = JSON.parse(req.body.tickets);
+        } catch (e) {}
+    }
+    if (typeof req.body.packages === "string") {
+        try {
+            req.body.packages = JSON.parse(req.body.packages);
+        } catch (e) {}
+    }
+    next();
+};
+
 // @desc التحقق من صحة بيانات إنشاء عملية شراء تذاكر/باقات
 const createBuyingValidator = [
+    parseFormDataJsonFields,
+
     check("guest")
         .optional()
         .isMongoId().withMessage("معرف الضيف غير صالح"),
@@ -11,14 +28,18 @@ const createBuyingValidator = [
         .optional()
         .matches(/^(010|011|012|015)[0-9]{8}$/).withMessage("رقم هاتف الضيف يجب أن يكون مصرياً صالحاً (11 رقم)"),
 
+    check("senderAccount")
+        .optional()
+        .isString().withMessage("حساب أو رقم المحول منه يجب أن يكون نصياً")
+        .trim(),
+
     check("tickets")
         .optional()
         .isArray().withMessage("بيانات التذاكر يجب أن تكون في شكل مصفوفة"),
 
     check("tickets.*.ticket")
         .if(check("tickets").exists())
-        .notEmpty().withMessage("معرف التذكرة مطلوب لكل عنصر تذكرة")
-        .isMongoId().withMessage("معرف التذكرة غير صالح"),
+        .notEmpty().withMessage("معرف التذكرة مطلوب لكل عنصر تذكرة"),
 
     check("tickets.*.quantity")
         .if(check("tickets").exists())
@@ -31,8 +52,7 @@ const createBuyingValidator = [
 
     check("packages.*.package")
         .if(check("packages").exists())
-        .notEmpty().withMessage("معرف الباقة مطلوب لكل عنصر باقة")
-        .isMongoId().withMessage("معرف الباقة غير صالح"),
+        .notEmpty().withMessage("معرف الباقة مطلوب لكل عنصر باقة"),
 
     check("packages.*.quantity")
         .if(check("packages").exists())
@@ -51,13 +71,13 @@ const createBuyingValidator = [
 
     check("paymentMethod")
         .optional()
-        .isIn(["cash", "card", "instapay", "vodafone_cash", "points"])
-        .withMessage("طريقة الدفع غير صحيحة، الخيارات المتاحة: (cash, card, instapay, vodafone_cash, points)"),
+        .isIn(["cash", "card", "instapay", "vodafone_cash", "points", "money"])
+        .withMessage("طريقة الدفع غير صحيحة، الخيارات المتاحة: (cash, card, instapay, vodafone_cash, points, money)"),
 
     check("paymentStatus")
         .optional()
-        .isIn(["pending", "paid", "failed", "refunded"])
-        .withMessage("حالة الدفع غير صحيحة، الخيارات المتاحة: (pending, paid, failed, refunded)"),
+        .isIn(["pending", "pending_verification", "paid", "failed", "refunded"])
+        .withMessage("حالة الدفع غير صحيحة، الخيارات المتاحة: (pending, pending_verification, paid, failed, refunded)"),
 
     validatorMiddleware
 ];
@@ -112,8 +132,33 @@ const updateBuyingStatusValidator = [
 
     check("paymentStatus")
         .optional()
-        .isIn(["pending", "paid", "failed", "refunded"])
-        .withMessage("حالة الدفع غير صحيحة، الخيارات: (pending, paid, failed, refunded)"),
+        .isIn(["pending", "pending_verification", "paid", "failed", "refunded"])
+        .withMessage("حالة الدفع غير صحيحة، الخيارات: (pending, pending_verification, paid, failed, refunded)"),
+
+    validatorMiddleware
+];
+
+// @desc التحقق من صحة مراجعة واعتماد الإيصال اليدوي (Admin)
+const verifyPaymentValidator = [
+    check("id")
+        .isMongoId().withMessage("معرف عملية الشراء غير صالح"),
+
+    check("action")
+        .notEmpty().withMessage("إجراء المراجعة مطلوب (approve أو reject)")
+        .isIn(["approve", "reject"]).withMessage("الإجراء يجب أن يكون إما approve أو reject"),
+
+    check("rejectionReason")
+        .optional()
+        .isString().withMessage("سبب الرفض يجب أن يكون نصاً")
+        .trim(),
+
+    validatorMiddleware
+];
+
+// @desc التحقق من تأكيد استلام النقدية على البوابة
+const markCashCollectedValidator = [
+    check("id")
+        .isMongoId().withMessage("معرف عملية الشراء غير صالح"),
 
     validatorMiddleware
 ];
@@ -133,5 +178,7 @@ module.exports = {
     getBuyingsByGuestValidator,
     redeemBuyingValidator,
     updateBuyingStatusValidator,
+    verifyPaymentValidator,
+    markCashCollectedValidator,
     deleteBuyingValidator
 };

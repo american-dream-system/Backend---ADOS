@@ -1,4 +1,4 @@
-const { check } = require("express-validator");
+const { check, body } = require("express-validator");
 const validatorMiddleware = require("../../middlewares/validatorMiddlewar");
 const guestModel = require("../guests/model");
 
@@ -9,9 +9,10 @@ const signupValidator = [
         .isLength({ min: 3 }).withMessage("يجب ألا يقل الاسم عن 3 أحرف"),
 
     check("email")
-        .notEmpty().withMessage("البريد الإلكتروني مطلوب")
+        .optional()
         .isEmail().withMessage("يرجى إدخال بريد إلكتروني صالح")
         .custom(async (val) => {
+            if (!val) return true;
             const existing = await guestModel.findOne({ email: val.toLowerCase().trim() });
             if (existing) {
                 throw new Error("البريد الإلكتروني مسجل بالفعل");
@@ -53,15 +54,16 @@ const signupValidator = [
     validatorMiddleware
 ];
 
-// @desc التحقق من صحة تسجيل الدخول (Login)
+// @desc التحقق من صحة تسجيل الدخول (Login) برقم الهاتف وكلمة المرور
 const loginValidator = [
     check("password")
         .notEmpty().withMessage("كلمة المرور مطلوبة"),
 
-    check("email")
+    body()
         .custom((val, { req }) => {
-            if (!req.body.email && !req.body.phone && !req.body.identifier) {
-                throw new Error("يرجى إدخال البريد الإلكتروني أو رقم الهاتف لتسجيل الدخول");
+            const id = req.body.phone || req.body.identifier || req.body.email;
+            if (!id || (typeof id === "string" && !id.trim())) {
+                throw new Error("يرجى إدخال رقم الهاتف لتسجيل الدخول");
             }
             return true;
         }),
@@ -71,18 +73,28 @@ const loginValidator = [
 
 // @desc التحقق من صحة نسيان كلمة المرور (Forget Password)
 const forgetPasswordValidator = [
-    check("email")
-        .notEmpty().withMessage("البريد الإلكتروني مطلوب لإعادة تعيين كلمة المرور")
-        .isEmail().withMessage("يرجى إدخال بريد إلكتروني صالح"),
+    body()
+        .custom((val, { req }) => {
+            const id = req.body.phone || req.body.email || req.body.identifier;
+            if (!id || (typeof id === "string" && !id.trim())) {
+                throw new Error("يرجى إدخال رقم الهاتف أو البريد الإلكتروني لإعادة تعيين كلمة المرور");
+            }
+            return true;
+        }),
 
     validatorMiddleware
 ];
 
 // @desc التحقق من صحة كود التحقق (Verify Reset Code)
 const verifyResetCodeValidator = [
-    check("email")
-        .notEmpty().withMessage("البريد الإلكتروني مطلوب")
-        .isEmail().withMessage("يرجى إدخال بريد إلكتروني صالح"),
+    body()
+        .custom((val, { req }) => {
+            const id = req.body.phone || req.body.email || req.body.identifier;
+            if (!id || (typeof id === "string" && !id.trim())) {
+                throw new Error("يرجى إدخال رقم الهاتف أو البريد الإلكتروني");
+            }
+            return true;
+        }),
 
     check("resetCode")
         .notEmpty().withMessage("كود التحقق مطلوب")
@@ -93,9 +105,14 @@ const verifyResetCodeValidator = [
 
 // @desc التحقق من صحة تعيين كلمة المرور الجديدة (Reset Password)
 const resetPasswordValidator = [
-    check("email")
-        .notEmpty().withMessage("البريد الإلكتروني مطلوب")
-        .isEmail().withMessage("يرجى إدخال بريد إلكتروني صالح"),
+    body()
+        .custom((val, { req }) => {
+            const id = req.body.phone || req.body.email || req.body.identifier;
+            if (!id || (typeof id === "string" && !id.trim())) {
+                throw new Error("يرجى إدخال رقم الهاتف أو البريد الإلكتروني");
+            }
+            return true;
+        }),
 
     check("newPassword")
         .notEmpty().withMessage("كلمة المرور الجديدة مطلوبة")

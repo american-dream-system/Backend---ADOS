@@ -6,6 +6,7 @@ const buyingModel = require("./model");
 const ticketModel = require("../tickets/model");
 const packageModel = require("../packges/model");
 const guestModel = require("../guests/model");
+const { verifyToken } = require("../../utils/token");
 
 // @desc Middleware to resize and save uploaded payment receipt screenshot
 const resizePaymentProofImage = async (req, res, next) => {
@@ -207,6 +208,17 @@ const createBuying = async (req, res, next) => {
         let finalGuestName = reqGuestName || "";
         let finalGuestPhone = reqGuestPhone || "";
 
+        // 0. Resolve from Bearer token if present
+        if (!req.guest && req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+            try {
+                const token = req.headers.authorization.split(" ")[1];
+                const decoded = verifyToken(token);
+                if (decoded && decoded.id) {
+                    req.guest = await guestModel.findById(decoded.id);
+                }
+            } catch (e) {}
+        }
+
         if (req.guest) {
             resolvedGuest = req.guest;
             finalGuestName = finalGuestName || req.guest.name;
@@ -219,6 +231,9 @@ const createBuying = async (req, res, next) => {
             }
         } else if (finalGuestPhone) {
             resolvedGuest = await guestModel.findOne({ phone: finalGuestPhone });
+            if (resolvedGuest) {
+                finalGuestName = finalGuestName || resolvedGuest.name;
+            }
         }
 
         // Process and validate Tickets

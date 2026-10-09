@@ -50,18 +50,54 @@ const createPackage = async (req, res, next) => {
     }
 };
 
-// @desc Get all packages (with optional pagination)
+// @desc Get all packages (with optional zone/category filtering & pagination)
 // @route GET /api/packages
 // @access Public
 const getAllPackages = async (req, res, next) => {
     try {
-        const page = parseInt(req.query.page);
-        const limit = parseInt(req.query.limit);
-        let query = packageModel.find();
+        const filter = {};
 
-        if (page && limit) {
-            const skip = (page - 1) * limit;
-            query = query.skip(skip).limit(limit);
+        // Zone / Target Page filtering
+        const zoneParam = req.query.zone || req.query.targetPage;
+        if (zoneParam) {
+            filter.$or = [
+                { page: zoneParam },
+                { page: new RegExp(zoneParam, 'i') },
+                { title: new RegExp(zoneParam, 'i') },
+                { titleAr: new RegExp(zoneParam, 'i') }
+            ];
+        } else if (req.query.page && isNaN(req.query.page)) {
+            filter.$or = [
+                { page: req.query.page },
+                { page: new RegExp(req.query.page, 'i') }
+            ];
+        }
+
+        // Timing / Category filtering
+        if (req.query.category) {
+            filter.category = req.query.category;
+        }
+
+        // Type filtering (e.g. pass vs birthday)
+        if (req.query.type === 'birthday') {
+            filter.$or = [
+                { page: 'birthday' },
+                { category: 'birthday' },
+                { title: { $regex: 'ميلاد|Birthday|احتفال|Party', $options: 'i' } }
+            ];
+        } else if (req.query.type === 'pass') {
+            filter.page = { $ne: 'birthday' };
+        }
+
+        let query = packageModel.find(filter);
+
+        // Numeric pagination
+        const isNumericPage = req.query.page && !isNaN(req.query.page);
+        if (isNumericPage && req.query.limit) {
+            const pageNum = parseInt(req.query.page);
+            const limitNum = parseInt(req.query.limit);
+            const skip = (pageNum - 1) * limitNum;
+            query = query.skip(skip).limit(limitNum);
         }
 
         const packages = await query;
@@ -70,6 +106,30 @@ const getAllPackages = async (req, res, next) => {
             count: packages.length,
             data: packages,
             packages
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc Get birthday packages
+// @route GET /api/packages/birthdays
+// @access Public
+const getBirthdayPackages = async (req, res, next) => {
+    try {
+        const birthdays = await packageModel.find({
+            $or: [
+                { page: "birthday" },
+                { category: "birthday" },
+                { title: { $regex: "ميلاد|Birthday|احتفال|Party", $options: "i" } },
+                { titleAr: { $regex: "ميلاد|Birthday|احتفال|Party", $options: "i" } }
+            ]
+        });
+        res.status(200).json({
+            success: true,
+            count: birthdays.length,
+            birthdays,
+            data: birthdays
         });
     } catch (error) {
         next(error);
@@ -143,6 +203,7 @@ const deletePackage = async (req, res, next) => {
 module.exports = {
     createPackage,
     getAllPackages,
+    getBirthdayPackages,
     getPackageById,
     updatePackage,
     deletePackage,

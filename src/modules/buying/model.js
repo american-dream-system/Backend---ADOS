@@ -6,6 +6,9 @@ const buyingTicketItemSchema = new mongoose.Schema({
         ref: "ticket",
         required: true
     },
+    title: {
+        type: String
+    },
     quantity: {
         type: Number,
         default: 1,

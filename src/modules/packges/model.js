@@ -5,26 +5,42 @@ const packageSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    subtitle: {
+        type: String
+    },
     price: {
         type: Number,
         required: true
     },
     priceAfterDiscount: {
         type: Number,
-        required: true
+        default: 0
     },
     pointsGets: {
         type: Number,
-        required: true
+        default: 0
     },
     description: {
         type: String,
-        required: true
+    },
+    feature: {
+        type: [String],
+        default: []
     },
     image: {
         type: String,
-        required: true
+        default: ""
+    },
+    page: {
+        type: String
+    },
+    category: {
+        type: String
+    },
+    active: {
+        type: Boolean,
+        default: true
     }
-}, { timestamps: true });
+}, { timestamps: true, strict: false });
 
 module.exports = mongoose.model("Package", packageSchema);

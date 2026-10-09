@@ -4,6 +4,7 @@ const { uploadSingleImage } = require("../../middlewares/uploadImages");
 const {
     createPackage,
     getAllPackages,
+    getBirthdayPackages,
     getPackageById,
     updatePackage,
     deletePackage,
@@ -18,6 +19,7 @@ const {
 
 router.post("/", uploadSingleImage("image"), resizePackageImage, createPackageValidator, createPackage);
 router.get("/", getAllPackages);
+router.get("/birthdays", getBirthdayPackages);
 router.get("/:id", getPackageValidator, getPackageById);
 router.put("/:id", uploadSingleImage("image"), resizePackageImage, updatePackageValidator, updatePackage);
 router.patch("/:id", uploadSingleImage("image"), resizePackageImage, updatePackageValidator, updatePackage);

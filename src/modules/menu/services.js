@@ -500,7 +500,9 @@ const placeOrder = async (req, res, next) => {
             paymentMethod = "cod",
             paymentProof,
             senderAccount,
-            senderPhoneOrAccount
+            senderPhoneOrAccount,
+            guest,
+            user
         } = req.body;
 
         let parsedItems = items;
@@ -554,6 +556,8 @@ const placeOrder = async (req, res, next) => {
 
         const newOrder = await menuOrderModel.create({
             orderCode,
+            guest: guest || (req.user && req.user.guestId ? req.user.guestId : undefined),
+            user: user || (req.user && req.user._id ? req.user._id : undefined),
             customerName: customerName || "Guest Customer",
             customerPhone: customerPhone || "N/A",
             deliveryAddress: deliveryAddress || "Dine-in / Pickup",

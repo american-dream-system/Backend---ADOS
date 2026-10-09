@@ -13,6 +13,8 @@ const buyingRoutes = require("./src/modules/buying/routes");
 const bookingTableRoutes = require("./src/modules/bookingTable/routes");
 const menuRoutes = require("./src/modules/menu/routes");
 const chatbotRoutes = require("./src/modules/chatbot/routes");
+const tripsRoutes = require("./src/modules/trips/routes");
+const eventsRoutes = require("./src/modules/events/routes");
 const morgan = require("morgan");
 const path = require("path");
 const swaggerUi = require("swagger-ui-express");
@@ -56,6 +58,8 @@ app.use("/api/menu", menuRoutes);
 app.use("/api/products", menuRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/chat", chatbotRoutes);
+app.use("/api/trips", tripsRoutes);
+app.use("/api/events", eventsRoutes);
 
 // Not found route
 app.use((req, res, next) => {

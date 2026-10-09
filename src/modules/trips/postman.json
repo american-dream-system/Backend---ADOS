@@ -1,0 +1,345 @@
+{
+  "info": {
+    "_postman_id": "c1a9e8d4-5b23-4f81-a931-tripsmodule01",
+    "name": "American Dream - School & Group Trips Module API",
+    "description": "Complete Postman collection for School and Group Trips booking, live calculator with 1:15 supervisor formula, instant quotations, and status management.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9500",
+      "type": "string"
+    },
+    {
+      "key": "tripId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "quoteCode",
+      "value": "AD-TRIP-7906",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Public Offers & Calculator",
+      "item": [
+        {
+          "name": "1.1 Get Trip Offers & Inclusions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/offers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "offers"]
+            },
+            "description": "Returns all 3 curated school trip offers: Full Dream Day (380 EGP), Play & Dine (290 EGP), and Play Zone Experience (210 EGP)."
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 Calculate Trip Cost (Full Dream Day - 45 Students)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"offerId\": \"full-dream\",\n  \"students\": 45\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/calculate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "calculate"]
+            },
+            "description": "Calculates cost and auto-computes complimentary supervisors (45 students / 15 = 3 free supervisors)."
+          },
+          "response": []
+        },
+        {
+          "name": "1.3 Calculate Trip Cost (Play & Dine - 20 Students)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"offerId\": \"play-dine\",\n  \"students\": 20\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/calculate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "calculate"]
+            },
+            "description": "Calculates cost for 20 students with minimum 1 supervisor."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Quotation & Booking Creation",
+      "item": [
+        {
+          "name": "2.1 Generate Official Trip Quotation (Step 1-3 Form)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var res = pm.response.json();",
+                  "    if (res.trip) {",
+                  "        pm.collectionVariables.set('tripId', res.trip._id);",
+                  "        pm.collectionVariables.set('quoteCode', res.trip.bookingCode);",
+                  "        console.log('Saved tripId:', res.trip._id);",
+                  "        console.log('Saved quoteCode:', res.trip.bookingCode);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orgName\": \"Manarat Al-Mostaqbal Language School\",\n  \"orgType\": \"School\",\n  \"contactName\": \"Omar Abdelrahman\",\n  \"phone\": \"01012345678\",\n  \"offerId\": \"full-dream\",\n  \"offerTitle\": \"FULL DREAM DAY\",\n  \"pricePerStudent\": 380,\n  \"studentsCount\": 45,\n  \"ageGroups\": [\"6-9\", \"10-12\"],\n  \"tripDate\": \"2026-10-28\",\n  \"shift\": \"morning\",\n  \"arrivalTime\": \"09:30 AM\",\n  \"notes\": \"Prefers lunch served at 12:30 PM with group photo near the canal\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/quote",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "quote"]
+            },
+            "description": "Creates an official trip quote, auto-computes 3 free supervisors, and returns unique AD-TRIP-XXXX code."
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 Book Trip Directly (Play & Dine - Evening Shift)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var res = pm.response.json();",
+                  "    if (res.trip) {",
+                  "        pm.collectionVariables.set('tripId', res.trip._id);",
+                  "        pm.collectionVariables.set('quoteCode', res.trip.bookingCode);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orgName\": \"Al-Nour Sports & Youth Club\",\n  \"orgType\": \"Youth Club\",\n  \"contactName\": \"Captain Tarek\",\n  \"phone\": \"01198765432\",\n  \"offerId\": \"play-dine\",\n  \"pricePerStudent\": 290,\n  \"studentsCount\": 30,\n  \"ageGroups\": [\"10-12\", \"13-15\"],\n  \"tripDate\": \"2026-11-02\",\n  \"shift\": \"evening\",\n  \"arrivalTime\": \"03:30 PM\",\n  \"status\": \"pending\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/book",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "book"]
+            },
+            "description": "Submits trip booking with pending status."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Search & Inquiries",
+      "item": [
+        {
+          "name": "3.1 Get Trip by Reference Code (AD-TRIP-XXXX)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/code/{{quoteCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "code", "{{quoteCode}}"]
+            },
+            "description": "Retrieves official quotation details using the generated reference number."
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 Get My Trips by Phone",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/my-trips?phone=01012345678",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "my-trips"],
+              "query": [
+                {
+                  "key": "phone",
+                  "value": "01012345678"
+                }
+              ]
+            },
+            "description": "Fetches all trip bookings associated with a specific coordinator phone number."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Admin & Management",
+      "item": [
+        {
+          "name": "4.1 Get All Trips (Paginated with Filters)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips?page=1&limit=10&shift=morning",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "shift",
+                  "value": "morning"
+                }
+              ]
+            },
+            "description": "Lists all trips with pagination and optional shift, date, or status filters."
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 Search Trips by Keyword",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips?search=Manarat",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Manarat"
+                }
+              ]
+            },
+            "description": "Searches trips by school name, contact person, or phone number."
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 Get Trip by Mongo ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/{{tripId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "{{tripId}}"]
+            },
+            "description": "Retrieves trip booking by internal MongoDB ID."
+          },
+          "response": []
+        },
+        {
+          "name": "4.4 Update Trip Booking Details",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentsCount\": 50,\n  \"arrivalTime\": \"10:00 AM\",\n  \"notes\": \"Increased student count to 50 (auto calculates 3 free supervisors)\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/{{tripId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "{{tripId}}"]
+            },
+            "description": "Updates student headcount or timings and automatically recalculates total price and supervisors."
+          },
+          "response": []
+        },
+        {
+          "name": "4.5 Update Trip Status (Confirm Reservation)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/{{tripId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "{{tripId}}", "status"]
+            },
+            "description": "Changes trip status to quote_generated, pending, confirmed, completed, or cancelled."
+          },
+          "response": []
+        },
+        {
+          "name": "4.6 Delete Trip Booking",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/trips/{{tripId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trips", "{{tripId}}"]
+            },
+            "description": "Permanently deletes a trip quotation or reservation record."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

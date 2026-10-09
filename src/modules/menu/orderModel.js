@@ -37,6 +37,14 @@ const menuOrderSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    guest: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Guest"
+    },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    },
     customerName: {
         type: String,
         trim: true

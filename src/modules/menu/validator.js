@@ -118,8 +118,20 @@ const deleteMenuItemValidator = [
     validatorMiddleware
 ];
 
+// Helper middleware to parse JSON string items if sent via multipart/form-data
+const parseFormDataJsonFields = (req, res, next) => {
+    if (typeof req.body.items === "string") {
+        try {
+            req.body.items = JSON.parse(req.body.items);
+        } catch (e) {}
+    }
+    next();
+};
+
 // @desc التحقق من صحة طلب طعام / توصيل
 const placeOrderValidator = [
+    parseFormDataJsonFields,
+
     check("items")
         .isArray({ min: 1 })
         .withMessage("يجب إرسال مصفوفة أصناف تحتوي على صنف واحد على الأقل"),
@@ -133,6 +145,10 @@ const placeOrderValidator = [
         .optional()
         .isNumeric()
         .withMessage("رسوم التوصيل يجب أن تكون رقماً"),
+
+    check("guest")
+        .optional()
+        .isMongoId().withMessage("معرف الضيف غير صالح"),
 
     validatorMiddleware
 ];

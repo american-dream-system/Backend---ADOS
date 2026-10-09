@@ -1,0 +1,420 @@
+{
+  "info": {
+    "_postman_id": "d2b8f7e1-4c92-41a6-8723-eventsmodule01",
+    "name": "American Dream - Events & Hall Booking Module API",
+    "description": "Complete Postman collection for venue hall reservations, birthday builder (14% VAT + Deposit calculations), space availability checks, and payment receipt tracking.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9500",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bookingCode",
+      "value": "BD-47803",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Public Info & Venue Spaces",
+      "item": [
+        {
+          "name": "1.1 Get Available Spaces & Halls",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/spaces",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "spaces"]
+            },
+            "description": "Lists all 4 venue spaces: Luxury Indoor Hall (120 guests), Panoramic Roof (80 guests), Seaside Lawn (50 guests), and Grand Waterfront Ballroom (450 guests)."
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 Get Birthday Celebration Packages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/packages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "packages"]
+            },
+            "description": "Returns birthday tiers: Explorer Adventure (7,500 EGP / 2,500 deposit), Champion Quest (11,500 EGP / 3,500 deposit), and Royal Waterfront VIP (16,500 EGP / 5,000 deposit)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Hall Availability Checks",
+      "item": [
+        {
+          "name": "2.1 Check Availability (Indoor Hall - Afternoon Session)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/availability?space=indoor&date=2026-10-24&session=afternoon",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "availability"],
+              "query": [
+                {
+                  "key": "space",
+                  "value": "indoor"
+                },
+                {
+                  "key": "date",
+                  "value": "2026-10-24"
+                },
+                {
+                  "key": "session",
+                  "value": "afternoon"
+                }
+              ]
+            },
+            "description": "Checks whether the indoor hall is already booked for the afternoon slot on this date to prevent double bookings."
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 Check Availability (Canal Roof - Evening Session)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/availability?space=roof&date=2026-10-25&session=evening",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "availability"],
+              "query": [
+                {
+                  "key": "space",
+                  "value": "roof"
+                },
+                {
+                  "key": "date",
+                  "value": "2026-10-25"
+                },
+                {
+                  "key": "session",
+                  "value": "evening"
+                }
+              ]
+            },
+            "description": "Checks availability for the panoramic roof evening session."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Booking Flows & Reservations",
+      "item": [
+        {
+          "name": "3.1 Book Birthday Celebration (Champion Quest - Indoor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var res = pm.response.json();",
+                  "    if (res.booking) {",
+                  "        pm.collectionVariables.set('bookingId', res.booking._id);",
+                  "        pm.collectionVariables.set('bookingCode', res.booking.bookingCode);",
+                  "        console.log('Saved bookingId:', res.booking._id);",
+                  "        console.log('Saved bookingCode:', res.booking.bookingCode);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactName\": \"Mona Youssef\",\n  \"contactPhone\": \"01234567890\",\n  \"contactEmail\": \"mona@example.com\",\n  \"eventType\": \"birthday\",\n  \"space\": \"indoor\",\n  \"birthdayDetails\": {\n    \"celebrantName\": \"Youssef\",\n    \"celebrantAge\": \"7-9\",\n    \"packageId\": \"champion\"\n  },\n  \"totalGuests\": 30,\n  \"eventDate\": \"2026-10-24\",\n  \"session\": \"afternoon\",\n  \"sessionTime\": \"04:00 PM – 07:30 PM\",\n  \"specialRequests\": \"Superhero themed backdrop and balloons\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/book",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "book"]
+            },
+            "description": "Creates birthday reservation with automatic 14% VAT (1,610 EGP), total (13,110 EGP), and required confirmation deposit (3,500 EGP)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 Book Grand Waterfront Ballroom (Gala / Event)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var res = pm.response.json();",
+                  "    if (res.booking) {",
+                  "        pm.collectionVariables.set('bookingId', res.booking._id);",
+                  "        pm.collectionVariables.set('bookingCode', res.booking.bookingCode);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactName\": \"Eng. Hazem Farouk\",\n  \"contactPhone\": \"01099887766\",\n  \"eventType\": \"general_hall\",\n  \"title\": \"Graduation Ceremony & Banquet\",\n  \"space\": \"grand_ballroom\",\n  \"totalGuests\": 250,\n  \"eventDate\": \"2026-11-15\",\n  \"session\": \"evening\",\n  \"sessionTime\": \"06:00 PM – 11:00 PM\",\n  \"basePrice\": 6500,\n  \"venueFee\": 4500,\n  \"specialRequests\": \"Stage setup, podium, and dual projector screens\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/book",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "book"]
+            },
+            "description": "Books the Grand Ballroom for larger ceremonies or banquets with venue fee and VAT calculation."
+          },
+          "response": []
+        },
+        {
+          "name": "3.3 Book Family Canal Gathering (Seaside Lawn)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactName\": \"Dr. Mahmoud Hassan\",\n  \"contactPhone\": \"01122334455\",\n  \"eventType\": \"family\",\n  \"title\": \"Family Golden Anniversary Gathering\",\n  \"space\": \"outdoor\",\n  \"totalGuests\": 45,\n  \"eventDate\": \"2026-10-30\",\n  \"session\": \"afternoon\",\n  \"sessionTime\": \"04:00 PM – 07:30 PM\",\n  \"basePrice\": 3800,\n  \"specialRequests\": \"Seaside tables with sunset viewing setup\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/book",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "book"]
+            },
+            "description": "Books private outdoor seaside lawn gathering."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Payments & Inquiries",
+      "item": [
+        {
+          "name": "4.1 Get Event by Booking Code (BD-XXXXX / EV-XXXXX)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/code/{{bookingCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "code", "{{bookingCode}}"]
+            },
+            "description": "Retrieves reservation status and pricing breakdown using unique booking code."
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 Upload Deposit Payment Proof Receipt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"instapay\",\n  \"paymentProof\": \"receipts/instapay-transfer-tx-99214482.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{bookingId}}/deposit-proof",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{bookingId}}", "deposit-proof"]
+            },
+            "description": "Submits InstaPay / Vodafone Cash deposit transfer receipt for staff review."
+          },
+          "response": []
+        },
+        {
+          "name": "4.3 Get My Events by Phone Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/my-events?phone=01234567890",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "my-events"],
+              "query": [
+                {
+                  "key": "phone",
+                  "value": "01234567890"
+                }
+              ]
+            },
+            "description": "Fetches all reservations associated with a customer phone."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Admin Management",
+      "item": [
+        {
+          "name": "5.1 Get All Events (Paginated with Status Filter)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events?page=1&limit=10&status=pending_deposit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "pending_deposit"
+                }
+              ]
+            },
+            "description": "Displays all event hall reservations with pagination and status filters."
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 Search Events by Keyword",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events?search=Youssef",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Youssef"
+                }
+              ]
+            },
+            "description": "Searches events by contact name, celebrant name, or booking code."
+          },
+          "response": []
+        },
+        {
+          "name": "5.3 Get Event by Mongo ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{bookingId}}"]
+            },
+            "description": "Retrieves booking details by MongoDB ID."
+          },
+          "response": []
+        },
+        {
+          "name": "5.4 Update Event Booking Details",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"totalGuests\": 35,\n  \"specialRequests\": \"Added 5 extra guests + requested chocolate flavor for celebration cake\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{bookingId}}"]
+            },
+            "description": "Updates guest count, timings, or catering preferences."
+          },
+          "response": []
+        },
+        {
+          "name": "5.5 Update Status (Verify Deposit / Confirm Reservation)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{bookingId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{bookingId}}", "status"]
+            },
+            "description": "Updates status to confirmed, deposit_verified, completed, or cancelled."
+          },
+          "response": []
+        },
+        {
+          "name": "5.6 Delete Event Booking",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "{{bookingId}}"]
+            },
+            "description": "Permanently deletes an event reservation."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

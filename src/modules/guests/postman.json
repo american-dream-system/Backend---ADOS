@@ -211,6 +211,45 @@
           "path": ["api", "guests", "{{guestId}}"]
         }
       }
+    },
+    {
+      "name": "10. Get Guest Full History & Transactions (سجل تعاملات وحجوزات الضيف بالـ ID)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/guests/{{guestId}}/full-history",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests", "{{guestId}}", "full-history"]
+        }
+      }
+    },
+    {
+      "name": "11. Get Guest Full History By Phone (سجل تعاملات الضيف برقم الهاتف)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/guests/full-history?phone=01012345678",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests", "full-history"],
+          "query": [
+            { "key": "phone", "value": "01012345678" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "12. Get All Guests Summary With Spending KPIs (ملخص إنفاق وتعاملات جميع الضيوف)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/guests/summary",
+          "host": ["{{base_url}}"],
+          "path": ["api", "guests", "summary"]
+        }
+      }
     }
   ],
   "variable": [

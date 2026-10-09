@@ -19,6 +19,7 @@ const swaggerUi = require("swagger-ui-express");
 const ApiError = require("./src/utils/ApiError");
 const GlobalError = require("./src/middlewares/error");
 const ngrok = require("@ngrok/ngrok");
+const cors = require("cors");
 
 const app = express();
 app.use(express.json());
@@ -32,6 +33,13 @@ app.use(
     swaggerUi.serve,
     swaggerUi.setup(swaggerSpec)
 ); //swagger docs
+
+// cors
+app.use(cors({
+    origin: "*",
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true
+}));
 
 // Mount routes
 app.use("/api/auth", authRoutes);

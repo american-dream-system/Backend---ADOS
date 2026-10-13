@@ -145,7 +145,6 @@ const eventBookingSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Indexes
-eventBookingSchema.index({ bookingCode: 1 });
 eventBookingSchema.index({ eventDate: 1, space: 1, session: 1 });
 eventBookingSchema.index({ contactPhone: 1 });
 

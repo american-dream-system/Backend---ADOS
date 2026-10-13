@@ -114,7 +114,6 @@ const tripBookingSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Indexing for search & queries
-tripBookingSchema.index({ bookingCode: 1 });
 tripBookingSchema.index({ tripDate: 1, shift: 1 });
 tripBookingSchema.index({ phone: 1 });
 

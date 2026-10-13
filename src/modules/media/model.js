@@ -48,7 +48,7 @@ const formatImageUrl = (image) => {
     if (!image || typeof image !== "string") return image;
     const trimmed = image.trim();
     if (
-        trimmed.startsWith("http://") || 
+        trimmed.startsWith("http://") ||
         trimmed.startsWith("https://") ||
         trimmed.startsWith("data:") ||
         trimmed.startsWith("blob:") ||
@@ -59,7 +59,7 @@ const formatImageUrl = (image) => {
     }
     const cleanImage = trimmed.replace(/^\/+/, "");
     const pureName = cleanImage.startsWith("media/") ? cleanImage.substring(6) : cleanImage;
-    return `http://localhost:9500/media/${pureName}`;
+    return `${process.env.BASE_URL}/media/${pureName}`;
 };
 
 const formatDoc = (doc) => {

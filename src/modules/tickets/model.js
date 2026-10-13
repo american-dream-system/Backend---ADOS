@@ -5,6 +5,14 @@ const ticketSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    titleAr: {
+        type: String,
+        default: ""
+    },
+    titleEn: {
+        type: String,
+        default: ""
+    },
     category: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "packageCategory"
@@ -34,6 +42,14 @@ const ticketSchema = new mongoose.Schema({
     saveBadge: {
         type: String
     },
+    saveBadgeAr: {
+        type: String,
+        default: ""
+    },
+    saveBadgeEn: {
+        type: String,
+        default: ""
+    },
     badgeColor: {
         type: String,
         default: "badge-cyan"
@@ -42,7 +58,15 @@ const ticketSchema = new mongoose.Schema({
         type: String,
         default: ""
     },
+    descriptionAr: {
+        type: String,
+        default: ""
+    },
     features: {
+        type: [String],
+        default: []
+    },
+    featuresAr: {
         type: [String],
         default: []
     },
@@ -50,9 +74,25 @@ const ticketSchema = new mongoose.Schema({
         type: String,
         default: ""
     },
+    bundleAr: {
+        type: String,
+        default: ""
+    },
+    extra: {
+        type: String,
+        default: ""
+    },
+    extraAr: {
+        type: String,
+        default: ""
+    },
     age: {
         type: String,
         required: true
+    },
+    ageAr: {
+        type: String,
+        default: ""
     },
     priceType: {
         type: String,

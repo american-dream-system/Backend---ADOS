@@ -44,8 +44,8 @@ const createTicketValidator = [
 
     check("priceType")
         .notEmpty().withMessage("نوع التسعير مطلوب")
-        .isIn(["hour", "game"])
-        .withMessage("نوع التسعير يجب أن يكون إما بالساعة (hour) أو باللعبة (game)"),
+        .isIn(["hour", "game", "all-day"])
+        .withMessage("نوع التسعير يجب أن يكون إما بالساعة (hour) أو باللعبة (game) أو طوال اليوم (all-day)"),
 
     check("hourPrice")
         .notEmpty().withMessage("سعر الساعة مطلوب")
@@ -96,8 +96,8 @@ const updateTicketValidator = [
 
     check("priceType")
         .optional()
-        .isIn(["hour", "game"])
-        .withMessage("نوع التسعير يجب أن يكون إما بالساعة (hour) أو باللعبة (game)"),
+        .isIn(["hour", "game", "all-day"])
+        .withMessage("نوع التسعير يجب أن يكون إما بالساعة (hour) أو باللعبة (game) أو طوال اليوم (all-day)"),
 
     check("hourPrice")
         .optional()

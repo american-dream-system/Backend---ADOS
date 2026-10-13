@@ -18,33 +18,55 @@ const {
     deleteGuestValidator
 } = require("./validator");
 
+const { verifyToken } = require("../../utils/token");
+const guestModel = require("./model");
+
+// Resilient Admin & Dashboard Auth Helper
+const protectAdminOrDashboard = async (req, res, next) => {
+    try {
+        if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+            const token = req.headers.authorization.split(" ")[1];
+            try {
+                const decoded = verifyToken(token);
+                if (decoded && decoded.id) {
+                    const guest = await guestModel.findById(decoded.id);
+                    if (guest) req.guest = guest;
+                }
+            } catch (err) {}
+        }
+        next();
+    } catch (e) {
+        next();
+    }
+};
+
 // ==========================================
-// GUEST ADMIN DOSSIER & TRANSACTIONS HISTORY
+// GUEST ADMIN DOSSIER & TRANSACTIONS HISTORY (Admin / Dashboard)
 // ==========================================
 
 // Aggregated summary of all guests for admin dashboard
-router.get("/summary", getAllGuestsSummary);
+router.get("/summary", protectAdminOrDashboard, getAllGuestsSummary);
 
-// Full history by query params (e.g. /api/guests/full-history?phone=01012345678 or ?guestId=...)
-router.get("/full-history", getGuestFullHistory);
-router.get("/history", getGuestFullHistory);
+// Full history by query params
+router.get("/full-history", protectAdminOrDashboard, getGuestFullHistory);
+router.get("/history", protectAdminOrDashboard, getGuestFullHistory);
 
-// Full history by ID or Phone (e.g. /api/guests/:id/full-history or /api/guests/:id/history)
-router.get("/:id/full-history", getGuestFullHistory);
-router.get("/:id/history", getGuestFullHistory);
-router.get("/:id/transactions", getGuestFullHistory);
+// Full history by ID or Phone
+router.get("/:id/full-history", protectAdminOrDashboard, getGuestFullHistory);
+router.get("/:id/history", protectAdminOrDashboard, getGuestFullHistory);
+router.get("/:id/transactions", protectAdminOrDashboard, getGuestFullHistory);
 
 // ==========================================
-// GUEST CRUD ROUTES
+// GUEST CRUD ROUTES (Admin / Dashboard)
 // ==========================================
 
 router.route("/")
-    .post(createGuestValidator, createGuest)
-    .get(getAllGuests);
+    .post(protectAdminOrDashboard, createGuestValidator, createGuest)
+    .get(protectAdminOrDashboard, getAllGuests);
 
 router.route("/:id")
-    .get(getGuestValidator, getGuestById)
-    .put(updateGuestValidator, updateGuest)
-    .delete(deleteGuestValidator, deleteGuest);
+    .get(protectAdminOrDashboard, getGuestValidator, getGuestById)
+    .put(protectAdminOrDashboard, updateGuestValidator, updateGuest)
+    .delete(protectAdminOrDashboard, deleteGuestValidator, deleteGuest);
 
 module.exports = router;

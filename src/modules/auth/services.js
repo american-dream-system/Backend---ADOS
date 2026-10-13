@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const guestModel = require("../guests/model");
+const LoyaltySettings = require("../loyalty/model");
 const sendEmail = require("../../utils/sendEmail");
 const { createToken, createRefreshToken, verifyRefreshToken } = require("../../utils/token");
 
@@ -14,6 +15,14 @@ const signup = async (req, res, next) => {
     try {
         const { name, email, phone, password, age, gender, children } = req.body;
 
+        let initialPoints = 0;
+        try {
+            const settings = await LoyaltySettings.getSettings();
+            if (settings && settings.isEnabled) {
+                initialPoints = Number(settings.welcomeBonusPoints) || 0;
+            }
+        } catch (e) {}
+
         const newGuest = await guestModel.create({
             name,
             email: email ? email.toLowerCase().trim() : undefined,
@@ -21,7 +30,8 @@ const signup = async (req, res, next) => {
             password,
             age: age || "25",
             gender: gender || "male",
-            children: children || []
+            children: children || [],
+            points: initialPoints
         });
 
         // Generate JWT Access & Refresh Tokens

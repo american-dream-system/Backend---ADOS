@@ -82,6 +82,10 @@ const buyingSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    pointsAwarded: {
+        type: Boolean,
+        default: false
+    },
     paymentMethod: {
         type: String,
         enum: ["cash", "card", "instapay", "vodafone_cash", "points", "money"],

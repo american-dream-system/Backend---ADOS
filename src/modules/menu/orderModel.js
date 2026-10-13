@@ -96,6 +96,14 @@ const menuOrderSchema = new mongoose.Schema({
         required: true,
         min: 0
     },
+    totalPoints: {
+        type: Number,
+        default: 0
+    },
+    pointsAwarded: {
+        type: Boolean,
+        default: false
+    },
     paymentMethod: {
         type: String,
         enum: ["cod", "cash", "card", "instapay", "vodafone_cash"],

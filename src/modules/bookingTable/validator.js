@@ -20,8 +20,7 @@ const createBookingTableValidator = [
         .isInt({ min: 1 }).withMessage("عدد الأفراد يجب أن يكون 1 على الأقل"),
 
     check("guest")
-        .notEmpty()
-        .withMessage("guest مطلوب")
+        .optional()
         .isMongoId().withMessage("معرف الضيف غير صالح"),
 
     check("phone")
@@ -91,8 +90,8 @@ const updateBookingStatusValidator = [
 
     check("status")
         .notEmpty().withMessage("حالة الحجز مطلوبة")
-        .isIn(["pending", "confirmed", "cancelled"])
-        .withMessage("حالة الحجز يجب أن تكون إحدى القيم التالية: (pending, confirmed, cancelled)"),
+        .isIn(["pending", "confirmed", "cancelled", "completed"])
+        .withMessage("حالة الحجز يجب أن تكون إحدى القيم التالية: (pending, confirmed, cancelled, completed)"),
 
     validatorMiddleware
 ];

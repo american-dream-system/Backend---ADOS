@@ -15,6 +15,7 @@ const menuRoutes = require("./src/modules/menu/routes");
 const chatbotRoutes = require("./src/modules/chatbot/routes");
 const tripsRoutes = require("./src/modules/trips/routes");
 const eventsRoutes = require("./src/modules/events/routes");
+const loyaltyRoutes = require("./src/modules/loyalty/routes");
 const morgan = require("morgan");
 const path = require("path");
 const swaggerUi = require("swagger-ui-express");
@@ -38,7 +39,7 @@ app.use(
 
 // cors
 app.use(cors({
-    origin: "*",
+    origin: true,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true
 }));
@@ -60,6 +61,8 @@ app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/chat", chatbotRoutes);
 app.use("/api/trips", tripsRoutes);
 app.use("/api/events", eventsRoutes);
+app.use("/api/loyalty", loyaltyRoutes);
+app.use("/api/points", loyaltyRoutes);
 
 // Not found route
 app.use((req, res, next) => {

@@ -278,10 +278,10 @@ const updateBookingTable = async (req, res, next) => {
 const updateBookingStatus = async (req, res, next) => {
     try {
         const { status } = req.body;
-        if (!["pending", "confirmed", "cancelled"].includes(status)) {
+        if (!["pending", "confirmed", "cancelled", "completed"].includes(status)) {
             return res.status(400).json({
                 success: false,
-                message: "Status must be 'pending', 'confirmed', or 'cancelled'"
+                message: "Status must be 'pending', 'confirmed', 'cancelled', or 'completed'"
             });
         }
 

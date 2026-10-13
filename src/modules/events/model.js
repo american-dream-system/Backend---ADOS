@@ -30,7 +30,7 @@ const eventBookingSchema = new mongoose.Schema({
     // Occasion / Event Classification
     eventType: {
         type: String,
-        enum: ["birthday", "family", "general_hall", "corporate", "other"],
+        enum: ["birthday", "family", "general", "general_hall", "corporate", "dating", "other"],
         default: "birthday"
     },
     title: {

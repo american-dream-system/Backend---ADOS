@@ -1,0 +1,409 @@
+{
+  "info": {
+    "_postman_id": "ad-media-module-collection-01",
+    "name": "American Dream - Media & CMS Module API",
+    "description": "Complete Postman collection for the American Dream Media & CMS Module.\n\nHandles:\n1. Multipart Image Uploads with Sharp 1024px auto-resizing (`/api/media`).\n2. Querying media by Page (`/api/media/page/:page`).\n3. Querying media by Section (`/api/media/section/:section`).\n4. Listing all media with optional filters (`/api/media`).\n5. Fetching single media by ID (`/api/media/:id`).\n6. Updating media for page section (`/api/media/:page/:section`).\n7. Deleting media records (`/api/media/:id`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9500",
+      "type": "string"
+    },
+    {
+      "key": "base_url",
+      "value": "http://localhost:9500",
+      "type": "string"
+    },
+    {
+      "key": "mediaId",
+      "value": "6ac9cc07e8548249fcd656c0",
+      "type": "string"
+    },
+    {
+      "key": "page",
+      "value": "kidsArea",
+      "type": "string"
+    },
+    {
+      "key": "section",
+      "value": "hero",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Media Upload (رفع الوسائط)",
+      "item": [
+        {
+          "name": "1.1 Upload Images (رفع صور لصفحة وقسم معين)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var res = pm.response.json();",
+                  "    pm.test('Status code is 201 Created', function () {",
+                  "        pm.response.to.have.status(201);",
+                  "    });",
+                  "    pm.test('Upload returns success: true and data object', function () {",
+                  "        pm.expect(res.success).to.be.true;",
+                  "        pm.expect(res.data).to.be.an('object');",
+                  "    });",
+                  "    if (res.data && res.data._id) {",
+                  "        pm.collectionVariables.set('mediaId', res.data._id);",
+                  "    }",
+                  "    if (res.data && res.data.page) {",
+                  "        pm.collectionVariables.set('page', res.data.page);",
+                  "    }",
+                  "    if (res.data && res.data.section) {",
+                  "        pm.collectionVariables.set('section', res.data.section);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "kids-hero-banner",
+                  "type": "text",
+                  "description": "اسم الصورة أو العنصر التوضيحي (مطلوب)"
+                },
+                {
+                  "key": "page",
+                  "value": "kidsArea",
+                  "type": "text",
+                  "description": "اسم الصفحة التابع لها العنصر: home, kidsArea, funZone, adventure, challenge, events, about, restaurant (مطلوب)"
+                },
+                {
+                  "key": "section",
+                  "value": "hero",
+                  "type": "text",
+                  "description": "اسم القسم: hero, explore, vibes, general, carousel, gallery (مطلوب)"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": [],
+                  "description": "مصفوفة الصور المراد رفعها (حتى 10 ملفات). يتم معالجتها بـ Sharp وتغيير حجمها إلى 1024x1024 وحفظها بصيغة JPEG"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/media",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "media"]
+            },
+            "description": "يرفع صوراً جديدة لقسم وصفحة محددة في لوحة التحكم CMS. يتم معالجة الصور وضغطها تلقائياً بـ Sharp وتخزينها في مجلد upload/media."
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 Direct Image Upload (رفع ملف صورة مباشرة)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "page",
+                  "value": "restaurant",
+                  "type": "text"
+                },
+                {
+                  "key": "section",
+                  "value": "experiences",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "ملف الصورة المراد رفعه واسترجاع رابطه مباشرة"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/media/upload-file",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "media", "upload-file"]
+            },
+            "description": "رفع ملف صورة مباشرة واسترجاع الـ URL واسم الملف لاستخدامه في تحديث أي كارت أو سلايدر."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Get Media Queries (استرجاع الوسائط)",
+      "item": [
+        {
+          "name": "2.1 Get All Media (عرض جميع الوسائط)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var res = pm.response.json();",
+                  "pm.test('Response is successful and contains array', function () {",
+                  "    pm.expect(res.success).to.be.true;",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "});",
+                  "if (res.data && res.data.length > 0) {",
+                  "    pm.collectionVariables.set('mediaId', res.data[0]._id);",
+                  "    if (res.data[0].page) pm.collectionVariables.set('page', res.data[0].page);",
+                  "    if (res.data[0].section) pm.collectionVariables.set('section', res.data[0].section);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/media",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "media"]
+            },
+            "description": "يجلب جميع عناصر الوسائط المسجلة في النظام مرتبة تنازلياً من الأحدث للأقدم مع عددها الإجمالي."
+          },
+          "response": []
+        },
+        {
+          "name": "2.2 Get Media Filtered by Query (تصفية الوسائط بالصفحة والقسم)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/media?page=home&section=explore",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "media"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "home",
+                  "description": "تصفية بصفحة معينة"
+                },
+                {
+                  "key": "section",
+                  "value": "explore",
+                  "description": "تصفية بقسم معين"
+                }
+              ]
+            },
+            "description": "استرجاع الوسائط مع التصفية الديناميكية بواسطة query parameters مثل page أو section."
+          },
+          "response": []
+        },
+        {
+          "name": "2.3 Get Media by Page (جلب وسائط صفحة محددة)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var res = pm.response.json();",
+                  "pm.test('Response success is true', function () {",
+                  "    pm.expect(res.success).to.be.true;",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/media/page/{{page}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "media", "page", "{{page}}"]
+            },
+            "description": "جلب كافة البنرات والوسائط التابعة لصفحة معينة مثل (kidsArea, funZone, home, adventure, challenge, events, about, restaurant)."
+          },
+          "response": []
+        },
+        {
+          "name": "2.4 Get Media by Section (جلب وسائط قسم محدد)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var res = pm.response.json();",
+                  "pm.test('Response success is true', function () {",
+                  "    pm.expect(res.success).to.be.true;",
+                  "    pm.expect(res.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/media/section/{{section}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "media", "section", "{{section}}"]
+            },
+            "description": "جلب الوسائط المرتبطة بقسم معين عبر كافة الصفحات مثل: hero, explore, vibes, general."
+          },
+          "response": []
+        },
+        {
+          "name": "2.5 Get Media by ID (جلب وسائط بالمعرف)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var res = pm.response.json();",
+                  "pm.test('Response has valid media record', function () {",
+                  "    pm.expect(res.success).to.be.true;",
+                  "    pm.expect(res.data).to.have.property('_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/media/{{mediaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "media", "{{mediaId}}"]
+            },
+            "description": "استرجاع تفاصيل مستند وسائط محدد بواسطة الـ ObjectId الخاص به."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Media Update & Section Replacement (تحديث الوسائط والكروت)",
+      "item": [
+        {
+          "name": "3.1 Update Section & Cards (تحديث أو إنشاء كروت وقسم كامل - Upsert)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var res = pm.response.json();",
+                  "pm.test('Update result is successful', function () {",
+                  "    pm.expect(res.success).to.be.true;",
+                  "    pm.expect(res.data).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"تجارب تناول الطعام\",\n  \"titleAr\": \"تجارب تناول الطعام\",\n  \"subtitle\": \"Choose How You Want to Enjoy\",\n  \"subtitleAr\": \"اختر الطريقة التي تفضلها للاستمتاع\",\n  \"descriptionAr\": \"سواء كنت تسترخي على طول الممشى الكبير أو تتذوق الأطباق الطازجة في أي مكان على ضفاف القناة.\",\n  \"items\": [\n    {\n      \"slot\": \"delivery\",\n      \"title\": \"DELIVERY\",\n      \"titleAr\": \"خدمة التوصيل\",\n      \"badge\": \"DELIVERY\",\n      \"badgeAr\": \"توصيل\",\n      \"description\": \"Order your favorite food and enjoy it wherever you are.\",\n      \"descriptionAr\": \"اطلب طعامك المفضل واستمتع به أينما كنت.\",\n      \"buttonText\": \"ORDER NOW\",\n      \"buttonTextAr\": \"اطلب الآن\",\n      \"actionType\": \"hash\",\n      \"actionTarget\": \"#restaurant-delivery\",\n      \"image\": \"/photo/kid area pic/Freshly grilled brioche cheeseburger with crispy shoestring fries and artisanal dip in craft takeaway presentation.png\",\n      \"order\": 1,\n      \"isActive\": true\n    },\n    {\n      \"slot\": \"digital_menu\",\n      \"title\": \"FOOD & DRINKS MENU\",\n      \"titleAr\": \"قائمة طعام ومشروبات المطعم\",\n      \"badge\": \"DIGITAL MENU\",\n      \"badgeAr\": \"المنيو الرقمي\",\n      \"description\": \"Browse our full gourmet menu featuring fresh dishes and desserts.\",\n      \"descriptionAr\": \"استعرض أشهى المأكولات الطازجة والمشروبات والحلويات مع كافة الأسعار والتفاصيل.\",\n      \"buttonText\": \"VIEW MENU\",\n      \"buttonTextAr\": \"تصفح المنيو\",\n      \"actionType\": \"modal\",\n      \"actionTarget\": \"menu_pdf\",\n      \"image\": \"/photo/kid area pic/vibe_family_pizza.png\",\n      \"order\": 2,\n      \"isActive\": true\n    },\n    {\n      \"slot\": \"table_booking\",\n      \"title\": \"BOOK A TABLE\",\n      \"titleAr\": \"حجز طاولة\",\n      \"badge\": \"VIP\",\n      \"badgeAr\": \"VIP\",\n      \"description\": \"Reserve your table and enjoy your meal seamlessly during your visit.\",\n      \"descriptionAr\": \"احجز طاولتك واستمتع بوجبتك بسلاسة وبدون انتظار أثناء زيارتك.\",\n      \"buttonText\": \"BOOK A TABLE\",\n      \"buttonTextAr\": \"احجز طاولة الآن\",\n      \"actionType\": \"modal\",\n      \"actionTarget\": \"booking_modal\",\n      \"image\": \"/photo/kid area pic/vibe_sunset_candle_table.png\",\n      \"order\": 3,\n      \"isActive\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/media/restaurant/experiences",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "media", "restaurant", "experiences"]
+            },
+            "description": "تحديث أو إنشاء قسم وكروت الصفحة بالكامل مع العناوين والصور والبطاقات (Auto-upsert)."
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 Get Specific Page Section (استرجاع قسم محدد مباشرة)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/media/restaurant/experiences",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "media", "restaurant", "experiences"]
+            },
+            "description": "استرجاع بيانات قسم محدد لصفحة معينة مباشرة."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Delete Media (حذف الوسائط)",
+      "item": [
+        {
+          "name": "4.1 Delete Media by ID (حذف وسائط بالمعرف)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var res = pm.response.json();",
+                  "pm.test('Deletion returns success', function () {",
+                  "    pm.expect(res.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/media/{{mediaId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "media", "{{mediaId}}"]
+            },
+            "description": "حذف مستند الوسائط نهائياً من قاعدة البيانات بواسطة الـ ID الخاص به."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

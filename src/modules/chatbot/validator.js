@@ -9,17 +9,17 @@ const sendMessageValidator = [
         .trim(),
 
     check("sessionId")
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isString().withMessage("معرف الجلسة يجب أن يكون نصياً")
         .trim(),
 
     check("guestName")
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .isString().withMessage("اسم العميل يجب أن يكون نصياً")
         .trim(),
 
     check("guestPhone")
-        .optional()
+        .optional({ nullable: true, checkFalsy: true })
         .matches(/^(010|011|012|015)[0-9]{8}$/).withMessage("رقم الهاتف يجب أن يكون رقماً مصرياً صالحاً (11 رقم)"),
 
     validatorMiddleware

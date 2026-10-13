@@ -44,4 +44,26 @@ const protectGuest = async (req, res, next) => {
     }
 };
 
-module.exports = { protectGuest };
+// @desc Middleware to restrict access based on role(s) (Scalable RBAC)
+const allowedTo = (...roles) => {
+    return (req, res, next) => {
+        const currentUser = req.guest || req.user;
+        if (!currentUser) {
+            return res.status(401).json({
+                success: false,
+                message: "يرجى تسجيل الدخول أولاً للتحقق من الصلاحيات"
+            });
+        }
+
+        if (!roles.includes(currentUser.role)) {
+            return res.status(403).json({
+                success: false,
+                message: `غير مصرح لك بالوصول إلى هذا الإجراء (الصلاحيات المسموحة: ${roles.join(", ")})`
+            });
+        }
+
+        next();
+    };
+};
+
+module.exports = { protectGuest, allowedTo };

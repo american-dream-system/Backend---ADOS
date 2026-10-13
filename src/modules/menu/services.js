@@ -3,6 +3,8 @@ const path = require("path");
 const sharp = require("sharp");
 const menuItemModel = require("./model");
 const menuOrderModel = require("./orderModel");
+const guestModel = require("../guests/model");
+const LoyaltySettings = require("../loyalty/model");
 
 // @desc Middleware to resize and save uploaded menu item image
 const resizeMenuItemImage = async (req, res, next) => {
@@ -542,7 +544,9 @@ const placeOrder = async (req, res, next) => {
         // Delivery fee & optional VAT logic matching frontend
         const deliveryFee = orderType === "delivery" ? (subtotal > 0 ? (req.body.deliveryFee !== undefined ? Number(req.body.deliveryFee) : 25) : 0) : 0;
         const vatAmount = req.body.vatAmount !== undefined ? Number(req.body.vatAmount) : 0;
-        const totalAmount = subtotal + deliveryFee + vatAmount;
+        const totalAmount = (req.body.totalAmount !== undefined && Number(req.body.totalAmount) > 0)
+            ? Number(req.body.totalAmount)
+            : (subtotal + deliveryFee + vatAmount);
 
         // Auto determine payment status
         let paymentStatus = req.body.paymentStatus;
@@ -554,9 +558,51 @@ const placeOrder = async (req, res, next) => {
             }
         }
 
+        // Retrieve loyalty settings to compute points earned
+        let pointsEarnedRate = 1;
+        try {
+            const loyaltySettings = await LoyaltySettings.getSettings();
+            if (loyaltySettings && loyaltySettings.isEnabled && loyaltySettings.pointsEarnedPerEgp !== undefined) {
+                pointsEarnedRate = loyaltySettings.pointsEarnedPerEgp;
+            }
+        } catch (e) {}
+
+        const totalPoints = Math.round(subtotal * pointsEarnedRate);
+
+        // Resolve target guest by ID, req.user/req.guest, or customerPhone
+        let targetGuest = null;
+        const candidateGuestId = guest || (req.user && req.user.guestId ? req.user.guestId : undefined);
+        if (candidateGuestId) {
+            targetGuest = await guestModel.findById(candidateGuestId);
+        }
+        if (!targetGuest && customerPhone) {
+            const cleanPhone = String(customerPhone).trim().replace(/\s+/g, "");
+            const localPhone = cleanPhone.startsWith("+20") ? "0" + cleanPhone.substring(3) : cleanPhone;
+            targetGuest = await guestModel.findOne({
+                $or: [
+                    { phone: cleanPhone },
+                    { phone: localPhone }
+                ]
+            });
+        }
+
+        let pointsAwarded = false;
+        let guestLatestPoints = undefined;
+        if (targetGuest && totalPoints > 0) {
+            const updatedG = await guestModel.findByIdAndUpdate(
+                targetGuest._id,
+                { $inc: { points: totalPoints } },
+                { new: true }
+            );
+            if (updatedG) {
+                pointsAwarded = true;
+                guestLatestPoints = updatedG.points;
+            }
+        }
+
         const newOrder = await menuOrderModel.create({
             orderCode,
-            guest: guest || (req.user && req.user.guestId ? req.user.guestId : undefined),
+            guest: targetGuest ? targetGuest._id : (guest || (req.user && req.user.guestId ? req.user.guestId : undefined)),
             user: user || (req.user && req.user._id ? req.user._id : undefined),
             customerName: customerName || "Guest Customer",
             customerPhone: customerPhone || "N/A",
@@ -568,6 +614,8 @@ const placeOrder = async (req, res, next) => {
             deliveryFee,
             vatAmount,
             totalAmount,
+            totalPoints,
+            pointsAwarded,
             paymentMethod,
             paymentStatus,
             paymentProof,
@@ -581,7 +629,9 @@ const placeOrder = async (req, res, next) => {
             orderId: newOrder.orderCode,
             orderCode: newOrder.orderCode,
             data: newOrder,
-            items: newOrder.items
+            items: newOrder.items,
+            pointsEarned: pointsAwarded ? totalPoints : 0,
+            currentPoints: guestLatestPoints
         });
     } catch (error) {
         next(error);
@@ -626,12 +676,15 @@ const getAllOrders = async (req, res, next) => {
 const getOrderById = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const cleanId = String(id || "").trim().replace(/^#/, "");
         let order;
 
-        if (id.startsWith("ORD-") || id.startsWith("AD-DLV-")) {
-            order = await menuOrderModel.findOne({ orderCode: id });
+        if (cleanId.startsWith("ORD-") || cleanId.startsWith("AD-DLV-")) {
+            order = await menuOrderModel.findOne({ orderCode: cleanId });
+        } else if (cleanId.match(/^[0-9a-fA-F]{24}$/)) {
+            order = await menuOrderModel.findById(cleanId);
         } else {
-            order = await menuOrderModel.findById(id);
+            order = await menuOrderModel.findOne({ orderCode: cleanId });
         }
 
         if (!order) {
@@ -655,7 +708,7 @@ const getOrderById = async (req, res, next) => {
 const updateOrderStatus = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { status, paymentStatus } = req.body;
+        const { status, paymentStatus, deliveryNotes, notes, paymentMethod } = req.body;
         const updates = {};
 
         if (status) {
@@ -680,15 +733,42 @@ const updateOrderStatus = async (req, res, next) => {
             updates.paymentStatus = paymentStatus;
         }
 
-        let order;
-        const query = (id.startsWith("ORD-") || id.startsWith("AD-DLV-")) ? { orderCode: id } : { _id: id };
-        order = await menuOrderModel.findOneAndUpdate(query, updates, { new: true });
+        if (paymentMethod) {
+            updates.paymentMethod = paymentMethod;
+        }
+
+        if (deliveryNotes !== undefined) {
+            updates.deliveryNotes = deliveryNotes;
+        } else if (notes !== undefined) {
+            updates.deliveryNotes = notes;
+        }
+
+        const cleanId = String(id || "").trim().replace(/^#/, "");
+        let query;
+        if (cleanId.startsWith("ORD-") || cleanId.startsWith("AD-DLV-")) {
+            query = { orderCode: cleanId };
+        } else if (cleanId.match(/^[0-9a-fA-F]{24}$/)) {
+            query = { _id: cleanId };
+        } else {
+            query = { orderCode: cleanId };
+        }
+
+        const order = await menuOrderModel.findOneAndUpdate(query, updates, { new: true });
 
         if (!order) {
             return res.status(404).json({
                 success: false,
                 message: "الطلب غير موجود"
             });
+        }
+
+        // If order cancelled, revert any awarded points
+        if (status === "cancelled" && order.pointsAwarded && order.guest && order.totalPoints > 0) {
+            await guestModel.findByIdAndUpdate(order.guest, {
+                $inc: { points: -order.totalPoints }
+            });
+            order.pointsAwarded = false;
+            await order.save();
         }
 
         res.status(200).json({

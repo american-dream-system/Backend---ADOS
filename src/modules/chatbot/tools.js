@@ -201,6 +201,23 @@ const chatbotToolDeclarations = [
                 }
             }
         }
+    },
+    {
+        name: "getLoyaltyPointsInfo",
+        description: "الاستعلام عن نظام نقاط المكافآت والولاء في أمريكان دريم، كم نقطة تساوي 1 جنيه، ومعدل اكتساب النقاط عند الشراء، أو حساب قيمة نقاط العميل بالجنيه.",
+        parameters: {
+            type: "OBJECT",
+            properties: {
+                pointsAmount: {
+                    type: "NUMBER",
+                    description: "عدد النقاط لحساب قيمتها بالجنيه المصري (اختياري)"
+                },
+                egpAmount: {
+                    type: "NUMBER",
+                    description: "المبلغ بالجنيه لحساب عدد النقاط المطلوبة للشراء أو المكتسبة (اختياري)"
+                }
+            }
+        }
     }
 ];
 
@@ -601,6 +618,34 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
                 if (args.topic === "location") return { success: true, location: info.location };
                 if (args.topic === "contact") return { success: true, contact: info.contact };
                 if (args.topic === "rules") return { success: true, rules: info.safetyRules };
+
+                return { success: true, ...info };
+            }
+
+            case "getLoyaltyPointsInfo": {
+                const LoyaltySettings = require("../loyalty/model");
+                const settings = await LoyaltySettings.getSettings();
+                const info = {
+                    isEnabled: settings.isEnabled,
+                    pointsPerEgp: settings.pointsPerEgp,
+                    pointsEarnedPerEgp: settings.pointsEarnedPerEgp,
+                    minRedeemPoints: settings.minRedeemPoints,
+                    welcomeBonusPoints: settings.welcomeBonusPoints,
+                    summary: `نظام النقاط في أمريكان دريم: كل ${settings.pointsPerEgp} نقطة = 1 جنيه مصري عند الدفع بالنقاط. والعميل يربح ${settings.pointsEarnedPerEgp} نقطة لكل 1 جنيه يتم إنفاقه عند الشراء بالمال.`
+                };
+
+                if (args.pointsAmount !== undefined && args.pointsAmount !== null) {
+                    const pts = Number(args.pointsAmount) || 0;
+                    info.calculatedPoints = pts;
+                    info.valueInEgp = Number((pts / settings.pointsPerEgp).toFixed(2));
+                }
+
+                if (args.egpAmount !== undefined && args.egpAmount !== null) {
+                    const egp = Number(args.egpAmount) || 0;
+                    info.calculatedEgp = egp;
+                    info.requiredPointsToPay = Math.round(egp * settings.pointsPerEgp);
+                    info.pointsEarnedOnPurchase = Math.round(egp * settings.pointsEarnedPerEgp);
+                }
 
                 return { success: true, ...info };
             }

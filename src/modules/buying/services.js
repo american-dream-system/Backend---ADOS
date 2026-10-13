@@ -6,6 +6,7 @@ const buyingModel = require("./model");
 const ticketModel = require("../tickets/model");
 const packageModel = require("../packges/model");
 const guestModel = require("../guests/model");
+const LoyaltySettings = require("../loyalty/model");
 const { verifyToken } = require("../../utils/token");
 
 // @desc Middleware to resize and save uploaded payment receipt screenshot
@@ -313,7 +314,69 @@ const createBuying = async (req, res, next) => {
 
         const totalTicketsPoints = validatedTickets.reduce((sum, t) => sum + t.pointsGets, 0);
         const totalPackagesPoints = validatedPackages.reduce((sum, p) => sum + p.pointsGets, 0);
-        const totalPoints = totalTicketsPoints + totalPackagesPoints;
+
+        // Retrieve Admin configured loyalty settings (conversion rates & rules)
+        const loyaltySettings = await LoyaltySettings.getSettings();
+
+        // Calculate points required if paying with points, OR points earned if paying with money
+        let totalPoints = 0;
+
+        if (paymentMethod === "points") {
+            if (!loyaltySettings.isEnabled) {
+                return res.status(400).json({
+                    success: false,
+                    message: "نظام الدفع بنقاط الولاء معطل حالياً من قبل الإدارة"
+                });
+            }
+
+            // Points required = Total order price in EGP * conversion rate set by Admin (pointsPerEgp)
+            totalPoints = Math.round(totalPrice * (loyaltySettings.pointsPerEgp || 10));
+
+            if (resolvedGuest) {
+                const currentBalance = Number(resolvedGuest.points) || 0;
+                if (currentBalance < (loyaltySettings.minRedeemPoints || 0)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `الحد الأدنى لاستخدام النقاط هو ${loyaltySettings.minRedeemPoints} نقطة. رصيدك الحالي: ${currentBalance} نقطة`
+                    });
+                }
+                if (currentBalance < totalPoints) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `رصيد النقاط الحالي غير كافٍ. المطلوب: ${totalPoints} نقطة (حسب تسعير ${loyaltySettings.pointsPerEgp} نقطة لكل 1 ج.م)، ورصيدك الحالي: ${currentBalance} نقطة`
+                    });
+                }
+                // Deduct points from guest balance
+                await guestModel.findByIdAndUpdate(resolvedGuest._id, {
+                    $inc: { points: -totalPoints }
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    message: "يجب تسجيل الدخول كضيف مسجل لإتمام الدفع برصيد النقاط"
+                });
+            }
+        } else {
+            // Paying with money/cash/instapay -> Guest earns reward points based on Admin's pointsEarnedPerEgp rate
+            const calculatedEarned = Math.round(totalPrice * (loyaltySettings.pointsEarnedPerEgp !== undefined ? loyaltySettings.pointsEarnedPerEgp : 1));
+            const itemsEarned = totalTicketsPoints + totalPackagesPoints;
+            totalPoints = calculatedEarned > 0 ? calculatedEarned : itemsEarned;
+        }
+
+        // Credit earned points to the guest upon placing order
+        let pointsAwarded = false;
+        let guestLatestPoints = undefined;
+        if (paymentMethod !== "points" && totalPoints > 0 && resolvedGuest) {
+            const updatedGuest = await guestModel.findByIdAndUpdate(
+                resolvedGuest._id,
+                { $inc: { points: totalPoints } },
+                { new: true }
+            );
+            if (updatedGuest) {
+                pointsAwarded = true;
+                guestLatestPoints = updatedGuest.points;
+            }
+        }
 
         // Auto-determine paymentStatus based on method & receipt presence
         let finalPaymentStatus = paymentStatus;
@@ -327,19 +390,6 @@ const createBuying = async (req, res, next) => {
             } else {
                 finalPaymentStatus = "pending";
             }
-        }
-
-        // Check and deduct points if paying with points
-        if (paymentMethod === "points" && resolvedGuest) {
-            if ((resolvedGuest.points || 0) < totalPoints) {
-                return res.status(400).json({
-                    success: false,
-                    message: "رصيد النقاط الحالي غير كافٍ لإتمام عملية الشراء بهذه الطريقة"
-                });
-            }
-            await guestModel.findByIdAndUpdate(resolvedGuest._id, {
-                $inc: { points: -totalPoints }
-            });
         }
 
         // Generate human-friendly QR order code (PZ-XXXXXX)
@@ -356,6 +406,7 @@ const createBuying = async (req, res, next) => {
             packages: validatedPackages,
             totalPrice,
             totalPoints,
+            pointsAwarded,
             paymentMethod,
             paymentStatus: finalPaymentStatus,
             paymentProof: paymentProof || undefined,
@@ -375,10 +426,12 @@ const createBuying = async (req, res, next) => {
             message: finalPaymentStatus === "pending_verification"
                 ? "تم إرسال الطلب وإيصال الدفع بنجاح، جاري مراجعة الإيصال من الإدارة وتأكيد التذكرة."
                 : (paymentMethod === "cash"
-                    ? "تم حجز التذكرة بنجاح! يرجى الدفع نقداً عند الوصول لالوصول واستلام إسورة الدخول."
+                    ? "تم حجز التذكرة بنجاح! يرجى الدفع نقداً عند الوصول واستلام إسورة الدخول."
                     : "تمت عملية الشراء بنجاح!"),
             data: populatedBuying,
-            buying: populatedBuying
+            buying: populatedBuying,
+            pointsEarned: pointsAwarded ? totalPoints : 0,
+            currentPoints: guestLatestPoints
         });
     } catch (error) {
         next(error);
@@ -464,10 +517,11 @@ const verifyPayment = async (req, res, next) => {
             buying.verifiedBy = req.user ? req.user.name : "Admin";
 
             // Credit reward points to Guest if not credited yet
-            if (buying.guest && buying.totalPoints > 0) {
+            if (buying.guest && buying.totalPoints > 0 && !buying.pointsAwarded) {
                 await guestModel.findByIdAndUpdate(buying.guest, {
                     $inc: { points: buying.totalPoints }
                 });
+                buying.pointsAwarded = true;
             }
         } else if (action === "reject") {
             buying.paymentStatus = "failed";
@@ -475,6 +529,13 @@ const verifyPayment = async (req, res, next) => {
             buying.rejectionReason = rejectionReason || "تم رفض إيصال التحويل لعدم مطابقة البيانات أو وضوح الصورة";
             buying.paymentVerifiedAt = new Date();
             buying.verifiedBy = req.user ? req.user.name : "Admin";
+            // If points were already credited on order placement, deduct them upon rejection
+            if (buying.guest && buying.totalPoints > 0 && buying.pointsAwarded) {
+                await guestModel.findByIdAndUpdate(buying.guest, {
+                    $inc: { points: -buying.totalPoints }
+                });
+                buying.pointsAwarded = false;
+            }
         } else {
             return res.status(400).json({
                 success: false,
@@ -524,11 +585,12 @@ const markCashCollected = async (req, res, next) => {
             ? `${buying.notes} | تم تحصيل النقدية على الوصول بنجاح`
             : "تم تحصيل النقدية على الوصول بنجاح";
 
-        // Credit points to guest upon actual payment
-        if (buying.guest && buying.totalPoints > 0) {
+        // Credit points to guest upon actual payment if not already credited
+        if (buying.guest && buying.totalPoints > 0 && !buying.pointsAwarded) {
             await guestModel.findByIdAndUpdate(buying.guest, {
                 $inc: { points: buying.totalPoints }
             });
+            buying.pointsAwarded = true;
         }
 
         await buying.save();

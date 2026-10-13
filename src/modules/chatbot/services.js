@@ -34,11 +34,42 @@ const SYSTEM_INSTRUCTION = `أنت "المساعد الذكي الرسمي لم�
 - رحب بالعميل بحفاوة واعرض عليه المساعدة.
 - إذا طلب العميل حجز طاولة أو طلب طعام، تأكد من توفر التفاصيل اللازمة (الاسم ورقم الهاتف) ثم نفّذ الأداة واعرض له ملخصاً جذاباً مع رقم التأكيد.`;
 
-// Available models ordered by preference
+// Available models ordered by speed & reliability (gemini-3.5-flash-lite is fastest for tool calling)
 const CANDIDATE_MODELS = [
-    process.env.GEMINI_MODEL || "gemini-3.5-flash",
-    "gemini-3.5-flash"
+    process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash"
 ];
+
+// Helper to sanitize message history to guarantee Gemini API alternating turn requirements
+const sanitizeConversationHistory = (messages) => {
+    const sanitized = [];
+    for (const m of messages) {
+        const role = m.role === 'model' ? 'model' : 'user';
+        let text = '';
+        if (Array.isArray(m.parts)) {
+            text = m.parts.map(p => p.text || (p.functionResponse ? JSON.stringify(p.functionResponse) : '')).filter(Boolean).join('\n');
+        } else {
+            text = String(m.content || m.text || '').trim();
+        }
+        if (!text) continue;
+
+        // If consecutive identical role, merge into previous turn
+        if (sanitized.length > 0 && sanitized[sanitized.length - 1].role === role) {
+            sanitized[sanitized.length - 1].parts[0].text += '\n' + text;
+        } else {
+            sanitized.push({ role, parts: [{ text }] });
+        }
+    }
+
+    // Gemini API requires the first turn to have role 'user'
+    if (sanitized.length > 0 && sanitized[0].role === 'model') {
+        sanitized.unshift({ role: 'user', parts: [{ text: 'مرحباً' }] });
+    }
+
+    return sanitized;
+};
 
 // Initialize Gemini Client
 const getGeminiClient = () => {
@@ -69,14 +100,10 @@ const runGeminiWithTools = async ({ messages, context = {} }) => {
                 ]
             });
 
-            // Start chat session with historical messages
-            const chat = generativeModel.startChat({
-                history: messages.slice(0, -1) // all previous messages
-            });
+            // Prepare sanitized multi-turn contents array
+            const contents = sanitizeConversationHistory(messages);
 
-            // Send current user message
-            const currentMessage = messages[messages.length - 1];
-            let response = await chat.sendMessage(currentMessage.parts);
+            let response = await generativeModel.generateContent({ contents });
 
             const executedTools = [];
             let loops = 0;
@@ -90,8 +117,12 @@ const runGeminiWithTools = async ({ messages, context = {} }) => {
                 }
 
                 loops++;
-                const toolResponses = [];
+                // 1. Append model's turn containing functionCall & thoughtSignature
+                const modelTurn = response.response.candidates[0].content;
+                contents.push(modelTurn);
 
+                // 2. Execute tools
+                const toolResponseParts = [];
                 for (const call of functionCalls) {
                     const result = await executeChatbotTool(call.name, call.args, context);
                     executedTools.push({
@@ -100,7 +131,7 @@ const runGeminiWithTools = async ({ messages, context = {} }) => {
                         result
                     });
 
-                    toolResponses.push({
+                    toolResponseParts.push({
                         functionResponse: {
                             name: call.name,
                             response: result
@@ -108,11 +139,24 @@ const runGeminiWithTools = async ({ messages, context = {} }) => {
                     });
                 }
 
-                // Send tool execution results back to Gemini
-                response = await chat.sendMessage(toolResponses);
+                // 3. Append tool responses with role: "user" (Gemini API modern standard)
+                contents.push({
+                    role: "user",
+                    parts: toolResponseParts
+                });
+
+                // 4. Send updated conversation back to Gemini
+                response = await generativeModel.generateContent({ contents });
             }
 
-            const finalText = response.response.text();
+            let finalText = "";
+            try {
+                finalText = response.response.text();
+            } catch (textErr) {
+                const parts = response.response.candidates?.[0]?.content?.parts || [];
+                finalText = parts.map(p => p.text).filter(Boolean).join("\n");
+            }
+
             return {
                 text: finalText,
                 executedTools,

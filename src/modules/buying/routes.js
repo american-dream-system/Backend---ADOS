@@ -30,11 +30,13 @@ const {
     deleteBuyingValidator
 } = require("./validator");
 
+const { protectGuest, allowedTo } = require("../../middlewares/authMiddleware");
+
 // 1. Get official payment accounts (InstaPay, Vodafone Cash, Cash rules)
 router.get("/payment-accounts", getPaymentAccounts);
 
 // 2. Admin: Get all purchases pending payment receipt verification
-router.get("/pending-verification", getPendingVerifications);
+router.get("/pending-verification", protectGuest, allowedTo("admin", "cashier"), getPendingVerifications);
 
 // 3. Buy tickets and/or packages (Supports multipart/form-data with image proof OR JSON)
 router.post(
@@ -62,6 +64,8 @@ router.post(
 // 5. Admin: Verify and approve/reject manual payment proof
 router.patch(
     "/:id/verify-payment",
+    protectGuest,
+    allowedTo("admin"),
     verifyPaymentValidator,
     verifyPayment
 );
@@ -69,6 +73,8 @@ router.patch(
 // 6. Admin/Cashier: Mark cash collected on arrival at the gate and issue ticket pass
 router.patch(
     "/:id/mark-cash-collected",
+    protectGuest,
+    allowedTo("admin", "cashier"),
     markCashCollectedValidator,
     markCashCollected
 );

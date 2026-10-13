@@ -18,15 +18,28 @@ const uploadOptions = () => {
     return multer({ storage: storage, fileFilter: imageOnly });
 };
 
+const fs = require("fs");
+
+// Ensure upload directories exist
+const ensureDir = (dirPath) => {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+    }
+};
+ensureDir("upload/media");
+
 const imageProcessing = async (req, res, next) => {
-    if (req.files && req.files.length > 0) {
-        const images = [];
+    try {
+        ensureDir("upload/media");
+        const page = (req.body && req.body.page) ? String(req.body.page).replace(/[^a-zA-Z0-9_-]/g, "") : "general";
+        const section = (req.body && req.body.section) ? String(req.body.section).replace(/[^a-zA-Z0-9_-]/g, "") : "general";
+        const name = (req.body && req.body.name) ? String(req.body.name).replace(/[^a-zA-Z0-9_-]/g, "") : "item";
 
-        for (const file of req.files) {
-            const fileName = `media-${req.body.page}-${req.body.section}-${req.body.name}-${Date.now()}.jpeg`;
-
-            await sharp(file.buffer)
-                .resize(1024, 1024, {
+        // Handle single file (req.file)
+        if (req.file) {
+            const fileName = `media-${page}-${section}-${name}-${Date.now()}-${uuidv4().substring(0, 6)}.jpeg`;
+            await sharp(req.file.buffer)
+                .resize(1920, 1920, {
                     fit: "inside",
                     withoutEnlargement: true,
                 })
@@ -34,13 +47,42 @@ const imageProcessing = async (req, res, next) => {
                 .jpeg({ quality: 90 })
                 .toFile(`upload/media/${fileName}`);
 
-            images.push(fileName);
+            req.body.image = fileName;
+            req.body.imageUrl = `http://localhost:9500/media/${fileName}`;
+            if (!req.body.images) req.body.images = [];
+            req.body.images.push(fileName);
         }
 
-        req.body.images = images;
-    }
+        // Handle multiple files (req.files)
+        if (req.files && req.files.length > 0) {
+            const images = req.body.images && Array.isArray(req.body.images) ? [...req.body.images] : [];
 
-    next();
+            for (const file of req.files) {
+                const fileName = `media-${page}-${section}-${name}-${Date.now()}-${uuidv4().substring(0, 6)}.jpeg`;
+
+                await sharp(file.buffer)
+                    .resize(1920, 1920, {
+                        fit: "inside",
+                        withoutEnlargement: true,
+                    })
+                    .toFormat("jpeg")
+                    .jpeg({ quality: 90 })
+                    .toFile(`upload/media/${fileName}`);
+
+                images.push(fileName);
+            }
+
+            req.body.images = images;
+            if (images.length > 0 && !req.body.image) {
+                req.body.image = images[0];
+                req.body.imageUrl = `http://localhost:9500/media/${images[0]}`;
+            }
+        }
+
+        next();
+    } catch (error) {
+        next(error);
+    }
 };
 
 const uploadSingleImage =

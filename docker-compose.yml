@@ -3,23 +3,34 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-
     container_name: american-dream-backend
-
     restart: unless-stopped
-
     env_file:
       - .env
-
     environment:
       NODE_ENV: production
       PORT: 5000
-
-    ports:
-      - "127.0.0.1:5000:5000"
-
     volumes:
       - backend_uploads:/app/upload
+    networks:
+      - default
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-proxy"
+      - "traefik.http.routers.ados-api.rule=Host(`api.americandreamismailia.com`)"
+      - "traefik.http.routers.ados-api.entrypoints=websecure"
+      - "traefik.http.routers.ados-api.tls=true"
+      - "traefik.http.routers.ados-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ados-api.loadbalancer.server.port=5000"
+      - "traefik.http.routers.ados-api-http.rule=Host(`api.americandreamismailia.com`)"
+      - "traefik.http.routers.ados-api-http.entrypoints=web"
+      - "traefik.http.routers.ados-api-http.middlewares=ados-https-redirect"
+      - "traefik.http.middlewares.ados-https-redirect.redirectscheme.scheme=https"
 
 volumes:
   backend_uploads:
+
+networks:
+  traefik-proxy:
+    external: true

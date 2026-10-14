@@ -5,6 +5,7 @@ const menuItemModel = require("./model");
 const menuOrderModel = require("./orderModel");
 const guestModel = require("../guests/model");
 const LoyaltySettings = require("../loyalty/model");
+const { createAndEmitNotification } = require("../notifications/services");
 
 // @desc Middleware to resize and save uploaded menu item image
 const resizeMenuItemImage = async (req, res, next) => {
@@ -622,6 +623,30 @@ const placeOrder = async (req, res, next) => {
             senderAccount: senderAccount || senderPhoneOrAccount || "",
             status: "pending"
         });
+
+        // Broadcast real-time notification to dashboard
+        try {
+            await createAndEmitNotification({
+                title: "طلب مطعم وكافيه جديد!",
+                message: `طلب طعام جديد #${newOrder.orderCode} للعميل ${customerName || "عميل"} بقيمة ${totalAmount} ج.م (${orderType === 'delivery' ? 'دليفري' : 'داين إن / استلام'})`,
+                type: "restaurant_order",
+                orderCode: newOrder.orderCode,
+                orderId: newOrder._id,
+                orderModelRef: "MenuOrder",
+                customerName: customerName || "عميل",
+                customerPhone: customerPhone || "",
+                amount: totalAmount,
+                metadata: {
+                    order: newOrder,
+                    itemsCount: (normalizedItems || []).length,
+                    orderType,
+                    paymentMethod,
+                    paymentStatus
+                }
+            });
+        } catch (notifErr) {
+            console.error("[createOrder] Notification error:", notifErr.message);
+        }
 
         res.status(201).json({
             success: true,

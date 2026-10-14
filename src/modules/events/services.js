@@ -1,5 +1,6 @@
 const EventBooking = require("./model");
 const Guest = require("../guests/model");
+const { createAndEmitNotification } = require("../notifications/services");
 
 // Preset Venue Spaces matching Client
 const EVENT_SPACES = [
@@ -316,6 +317,33 @@ const createEventBooking = async (req, res) => {
         });
 
         const populated = await EventBooking.findById(newBooking._id).populate("guest", "name phone email");
+
+        // Broadcast real-time notification to dashboard
+        try {
+            await createAndEmitNotification({
+                title: "حجز قاعة / مناسبة جديد!",
+                message: `حجز مناسبة جديد #${code} (${spaceTitle || "قاعة الاحتفالات"}) للعميل ${contactName || "عميل"} بقيمة إجمالية ${totalAmount} ج.م (عربون: ${resolvedDeposit} ج.م)`,
+                type: "event_booking",
+                orderCode: code,
+                orderId: newBooking._id,
+                orderModelRef: "Event",
+                customerName: contactName || "عميل",
+                customerPhone: contactPhone || "",
+                amount: totalAmount,
+                metadata: {
+                    booking: populated,
+                    space,
+                    spaceTitle,
+                    eventType,
+                    celebrantName: birthdayDetails?.celebrantName,
+                    eventDate,
+                    sessionTime,
+                    depositRequired: resolvedDeposit
+                }
+            });
+        } catch (notifErr) {
+            console.error("[createEventBooking] Notification error:", notifErr.message);
+        }
 
         return res.status(201).json({
             success: true,

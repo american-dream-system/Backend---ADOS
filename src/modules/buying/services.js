@@ -8,6 +8,7 @@ const packageModel = require("../packges/model");
 const guestModel = require("../guests/model");
 const LoyaltySettings = require("../loyalty/model");
 const { verifyToken } = require("../../utils/token");
+const { createAndEmitNotification } = require("../notifications/services");
 
 // @desc Middleware to resize and save uploaded payment receipt screenshot
 const resizePaymentProofImage = async (req, res, next) => {
@@ -420,6 +421,30 @@ const createBuying = async (req, res, next) => {
             .populate("guest")
             .populate("tickets.ticket")
             .populate("packages.package");
+
+        // Broadcast real-time notification to dashboard
+        try {
+            await createAndEmitNotification({
+                title: "طلب تذاكر وباقات جديد!",
+                message: `طلب جديد رقم #${newBuying.orderCode} للعميل ${finalGuestName || "عميل مميز"} بقيمة ${totalPrice} ج.م`,
+                type: "playzone_order",
+                orderCode: newBuying.orderCode,
+                orderId: newBuying._id,
+                orderModelRef: "Buying",
+                customerName: finalGuestName || "عميل مميز",
+                customerPhone: finalGuestPhone || "",
+                amount: totalPrice,
+                metadata: {
+                    order: populatedBuying,
+                    ticketsCount: validatedTickets.length,
+                    packagesCount: validatedPackages.length,
+                    paymentMethod,
+                    paymentStatus: finalPaymentStatus
+                }
+            });
+        } catch (notifErr) {
+            console.error("[createBuying] Notification error:", notifErr.message);
+        }
 
         return res.status(201).json({
             success: true,

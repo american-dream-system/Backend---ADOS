@@ -1,5 +1,6 @@
 const BookingTable = require("./model");
 const Guest = require("../guests/model");
+const { createAndEmitNotification } = require("../notifications/services");
 
 // Helper to generate unique booking code (TB-XXXXXX)
 const generateBookingCode = async () => {
@@ -115,6 +116,30 @@ const createBookingTable = async (req, res, next) => {
         });
 
         const populated = await BookingTable.findById(newBooking._id).populate("guest");
+
+        // Broadcast real-time notification to dashboard
+        try {
+            await createAndEmitNotification({
+                title: "حجز طاولة مطعم جديد!",
+                message: `حجز طاولة جديد #${bookingCode} بمنطقة (${area}) لعدد ${numberOfPerson} أفراد بتاريخ ${date} - ${time}`,
+                type: "table_booking",
+                orderCode: bookingCode,
+                orderId: newBooking._id,
+                orderModelRef: "BookingTable",
+                customerName: targetName,
+                customerPhone: targetPhone || "",
+                amount: 0,
+                metadata: {
+                    booking: populated,
+                    area,
+                    date,
+                    time,
+                    numberOfPerson
+                }
+            });
+        } catch (notifErr) {
+            console.error("[createBookingTable] Notification error:", notifErr.message);
+        }
 
         res.status(201).json({
             success: true,

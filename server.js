@@ -1,7 +1,9 @@
 const express = require("express");
+const http = require("http");
 const dotenv = require("dotenv");
 dotenv.config();
 const PORT = process.env.PORT || 5000;
+const { initSocket } = require("./src/config/socket");
 const dbConnecting = require("./src/config/database");
 const swaggerSpec = require("./src/config/swagger");
 const mediaRoutes = require("./src/modules/media/routes");
@@ -16,6 +18,7 @@ const chatbotRoutes = require("./src/modules/chatbot/routes");
 const tripsRoutes = require("./src/modules/trips/routes");
 const eventsRoutes = require("./src/modules/events/routes");
 const loyaltyRoutes = require("./src/modules/loyalty/routes");
+const notificationsRoutes = require("./src/modules/notifications/routes");
 const morgan = require("morgan");
 const path = require("path");
 const swaggerUi = require("swagger-ui-express");
@@ -63,6 +66,7 @@ app.use("/api/trips", tripsRoutes);
 app.use("/api/events", eventsRoutes);
 app.use("/api/loyalty", loyaltyRoutes);
 app.use("/api/points", loyaltyRoutes);
+app.use("/api/notifications", notificationsRoutes);
 
 // Not found route
 app.use((req, res, next) => {
@@ -76,9 +80,12 @@ app.use(GlobalError);
 // Connect to DB
 dbConnecting();
 
-// Start server
-const server = app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+// Start server with Socket.io
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(PORT, () => {
+    console.log(`Server is running with WebSockets on port ${PORT}`);
 });
 
 // Global Error Handling Outside Express

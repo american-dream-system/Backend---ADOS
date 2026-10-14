@@ -1,5 +1,6 @@
 const TripBooking = require("./model");
 const Guest = require("../guests/model");
+const { createAndEmitNotification } = require("../notifications/services");
 
 // Preset Trip Packages matching Client DesktopTripsPage
 const TRIP_OFFERS = [
@@ -229,6 +230,32 @@ const createTripQuote = async (req, res) => {
         });
 
         const populated = await TripBooking.findById(newTrip._id).populate("guest", "name phone email");
+
+        // Broadcast real-time notification to dashboard
+        try {
+            await createAndEmitNotification({
+                title: "طلب رحلة مدرسية / مؤسسات جديد!",
+                message: `حجز رحلة جديد #${code} لمنظمة (${orgName || "جهة خاصة"}) بعدد ${studentsNum} طالب بإجمالي ${totalPrice} ج.م`,
+                type: "trip_booking",
+                orderCode: code,
+                orderId: newTrip._id,
+                orderModelRef: "Trip",
+                customerName: contactName || orgName || "مسؤول الرحلة",
+                customerPhone: phone || "",
+                amount: totalPrice,
+                metadata: {
+                    trip: populated,
+                    orgName,
+                    orgType,
+                    studentsCount: studentsNum,
+                    supervisorsCount: finalSupervisors,
+                    tripDate,
+                    shift
+                }
+            });
+        } catch (notifErr) {
+            console.error("[createTripQuote] Notification error:", notifErr.message);
+        }
 
         return res.status(201).json({
             success: true,

@@ -48,7 +48,7 @@ const imageProcessing = async (req, res, next) => {
                 .toFile(`upload/media/${fileName}`);
 
             req.body.image = fileName;
-            req.body.imageUrl = `http://localhost:9500/media/${fileName}`;
+            req.body.imageUrl = `/media/${fileName}`;
             if (!req.body.images) req.body.images = [];
             req.body.images.push(fileName);
         }
@@ -75,7 +75,7 @@ const imageProcessing = async (req, res, next) => {
             req.body.images = images;
             if (images.length > 0 && !req.body.image) {
                 req.body.image = images[0];
-                req.body.imageUrl = `http://localhost:9500/media/${images[0]}`;
+                req.body.imageUrl = `/media/${images[0]}`;
             }
         }
 

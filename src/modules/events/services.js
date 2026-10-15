@@ -13,7 +13,7 @@ const EVENT_SPACES = [
         capacityEn: "Up to 120 Guests",
         descAr: "قاعة احتفالات داخلية فاخرة بثريات كريستال، ومسرح مخصص، وتجهيزات صوت وإضاءة احترافية.",
         descEn: "Immersive indoor celebration space with crystal chandeliers, customizable stage, private sound & lighting setup.",
-        image: "/photo/kid area pic/American Dream Ismailia luxury event hall architecture setup.png",
+        image: "/photo/kid-area-pic/American Dream Ismailia luxury event hall architecture setup.png",
         fee: 0
     },
     {
@@ -25,7 +25,7 @@ const EVENT_SPACES = [
         capacityEn: "Up to 80 Guests",
         descAr: "إطلالة بانورامية ساحرة في الهواء الطلق على غروب قناة السويس مع إضاءات احتفالية دافئة.",
         descEn: "Open-air breeze with panoramic sunset views over the historic Suez Canal, festoon fairy lighting.",
-        image: "/photo/kid area pic/roof_photo_1.png",
+        image: "/photo/kid-area-pic/roof_photo_1.png",
         fee: 0
     },
     {
@@ -37,7 +37,7 @@ const EVENT_SPACES = [
         capacityEn: "Max 20 Guests (Birthdays)",
         descAr: "مسطح أخضر طبيعي مطل على القناة ومزين بالأضواء الدافئة، ومجاور لمناطق الألعاب والأنشطة.",
         descEn: "Lush seaside green lawn illuminated with warm fairy lights, spacious play zones for kids' fun.",
-        image: "/photo/kid area pic/Canal-side sunset dinner terrace with warm string lights, dining tables, grilled meats, salads, and sparkling water.png",
+        image: "/photo/kid-area-pic/Canal-side sunset dinner terrace with warm string lights, dining tables, grilled meats, salads, and sparkling water.png",
         fee: 0
     },
     {
@@ -49,7 +49,7 @@ const EVENT_SPACES = [
         capacityEn: "Up to 450 Guests",
         descAr: "قاعة كبرى للفعاليات والمؤتمرات وحفلات التخرج والخطوبات مع أحدث أنظمة الصوت والشاشات العملاقة.",
         descEn: "Waterfront Grand Ballroom for galas, banquets, graduations, and large-scale corporate summits.",
-        image: "/photo/kid area pic/Image (3).png",
+        image: "/photo/kid-area-pic/Image (3).png",
         fee: 4500
     }
 ];

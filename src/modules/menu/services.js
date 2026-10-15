@@ -45,7 +45,7 @@ const SEED_MENU_ITEMS = [
         priceAfterDiscount: 165,
         category: "burgers",
         rating: 4.9,
-        image: "/photo/kid area pic/Freshly grilled brioche cheeseburger with crispy shoestring fries and artisanal dip in craft takeaway presentation.png",
+        image: "/photo/kid-area-pic/Freshly grilled brioche cheeseburger with crispy shoestring fries and artisanal dip in craft takeaway presentation.png",
         isChefSpecial: true,
         available: true
     },
@@ -58,7 +58,7 @@ const SEED_MENU_ITEMS = [
         priceAfterDiscount: 310,
         category: "grills",
         rating: 5.0,
-        image: "/photo/kid area pic/Canal-side sunset dinner terrace with warm string lights, dining tables, grilled meats, salads, and sparkling water.png",
+        image: "/photo/kid-area-pic/Canal-side sunset dinner terrace with warm string lights, dining tables, grilled meats, salads, and sparkling water.png",
         isChefSpecial: true,
         available: true
     },
@@ -71,7 +71,7 @@ const SEED_MENU_ITEMS = [
         priceAfterDiscount: 155,
         category: "pizza",
         rating: 4.8,
-        image: "/photo/kid area pic/mosaic-card-2.png",
+        image: "/photo/kid-area-pic/mosaic-card-2.png",
         isChefSpecial: true,
         available: true
     },
@@ -84,7 +84,7 @@ const SEED_MENU_ITEMS = [
         priceAfterDiscount: 60,
         category: "drinks",
         rating: 4.9,
-        image: "/photo/kid area pic/Image (1).png",
+        image: "/photo/kid-area-pic/Image (1).png",
         isChefSpecial: false,
         available: true
     },
@@ -97,7 +97,7 @@ const SEED_MENU_ITEMS = [
         priceAfterDiscount: 55,
         category: "coffee",
         rating: 4.8,
-        image: "/photo/kid area pic/Image (2).png",
+        image: "/photo/kid-area-pic/Image (2).png",
         isChefSpecial: false,
         available: true
     },
@@ -201,7 +201,7 @@ const SEED_MENU_ITEMS = [
         priceAfterDiscount: 160,
         category: "burgers",
         rating: 4.9,
-        image: "/photo/kid area pic/dish_burger.png",
+        image: "/photo/kid-area-pic/dish_burger.png",
         isChefSpecial: true,
         available: true
     },
@@ -214,7 +214,7 @@ const SEED_MENU_ITEMS = [
         priceAfterDiscount: 195,
         category: "pizza",
         rating: 4.9,
-        image: "/photo/kid area pic/dish_pizza.png",
+        image: "/photo/kid-area-pic/dish_pizza.png",
         isChefSpecial: true,
         available: true
     },
@@ -227,7 +227,7 @@ const SEED_MENU_ITEMS = [
         priceAfterDiscount: 80,
         category: "coffee",
         rating: 4.8,
-        image: "/photo/kid area pic/dish_latte.png",
+        image: "/photo/kid-area-pic/dish_latte.png",
         isChefSpecial: true,
         available: true
     },
@@ -240,7 +240,7 @@ const SEED_MENU_ITEMS = [
         priceAfterDiscount: 235,
         category: "meals",
         rating: 5.0,
-        image: "/photo/kid area pic/dish_deluxe_box.png",
+        image: "/photo/kid-area-pic/dish_deluxe_box.png",
         isChefSpecial: true,
         available: true
     },
@@ -253,7 +253,7 @@ const SEED_MENU_ITEMS = [
         priceAfterDiscount: 125,
         category: "sweets",
         rating: 4.9,
-        image: "/photo/kid area pic/dish_cake.png",
+        image: "/photo/kid-area-pic/dish_cake.png",
         isChefSpecial: true,
         available: true
     },
@@ -266,7 +266,7 @@ const SEED_MENU_ITEMS = [
         priceAfterDiscount: 85,
         category: "drinks",
         rating: 4.9,
-        image: "/photo/kid area pic/dish_cooler.png",
+        image: "/photo/kid-area-pic/dish_cooler.png",
         isChefSpecial: true,
         available: true
     }

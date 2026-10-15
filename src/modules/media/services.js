@@ -217,9 +217,9 @@ const uploadDirectFile = async (req, res) => {
         }
 
         const primaryFilename = req.body.image || (req.body.images && req.body.images[0] ? req.body.images[0] : null);
-        const fileUrl = req.body.imageUrl || (primaryFilename ? `http://localhost:9500/media/${primaryFilename}` : null);
+        const fileUrl = req.body.imageUrl || (primaryFilename ? `/media/${primaryFilename}` : null);
         const imagesList = req.body.images || (primaryFilename ? [primaryFilename] : []);
-        const urlsList = imagesList.map(img => img.startsWith("http") ? img : `http://localhost:9500/media/${img}`);
+        const urlsList = imagesList.map(img => img.startsWith("http") ? img : `/media/${img}`);
 
         res.status(200).json({ 
             success: true, 

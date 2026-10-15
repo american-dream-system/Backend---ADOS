@@ -32,9 +32,9 @@ const EVENT_SPACES = [
         id: "outdoor",
         titleAr: "الحديقة البحرية المفتوحة",
         titleEn: "Seaside Waterfront Lawn",
-        capacity: 50,
-        capacityAr: "حتى ٥٠ ضيفاً",
-        capacityEn: "Up to 50 Guests",
+        capacity: 20,
+        capacityAr: "أقصى حد ٢٠ ضيفاً (أعياد الميلاد)",
+        capacityEn: "Max 20 Guests (Birthdays)",
         descAr: "مسطح أخضر طبيعي مطل على القناة ومزين بالأضواء الدافئة، ومجاور لمناطق الألعاب والأنشطة.",
         descEn: "Lush seaside green lawn illuminated with warm fairy lights, spacious play zones for kids' fun.",
         image: "/photo/kid area pic/Canal-side sunset dinner terrace with warm string lights, dining tables, grilled meats, salads, and sparkling water.png",
@@ -161,6 +161,19 @@ const checkEventAvailability = async (req, res) => {
             });
         }
 
+        // Outdoor space is ALWAYS available without conflict check (only indoor and roof are checked)
+        if (space === "outdoor") {
+            return res.status(200).json({
+                success: true,
+                isAvailable: true,
+                space,
+                date,
+                session: session || "all",
+                conflictingBookingsCount: 0,
+                message: "المساحة الخارجية مفتوحة ومتاحة للحجز دائماً"
+            });
+        }
+
         const dateObj = new Date(date);
         const nextDay = new Date(dateObj);
         nextDay.setDate(nextDay.getDate() + 1);
@@ -205,6 +218,9 @@ const createEventBooking = async (req, res) => {
             eventType = "birthday",
             title,
             space = "indoor",
+            bookingMode = "package", // "package" or "per_guest"
+            pricePerGuest = 0,
+            selectedItems = [],
             birthdayDetails = {},
             totalGuests = 30,
             kidsCount,
@@ -228,25 +244,45 @@ const createEventBooking = async (req, res) => {
         }
 
         // Guests breakdown
-        const guestsNum = Math.max(1, parseInt(totalGuests, 10) || 30);
+        let guestsNum = Math.max(1, parseInt(totalGuests, 10) || 30);
+
+        // Outdoor Birthday Limit: Strictly max 20 guests
+        if (eventType === "birthday" && space === "outdoor" && guestsNum > 20) {
+            return res.status(400).json({
+                success: false,
+                message: "أقصى عدد أفراد لعيد الميلاد في الحديقة الخارجية (Outdoor) هو 20 فرداً"
+            });
+        }
+
         const calculatedKids = kidsCount !== undefined ? parseInt(kidsCount, 10) : Math.round(guestsNum * (2 / 3));
         const calculatedAdults = adultsCount !== undefined ? parseInt(adultsCount, 10) : guestsNum - calculatedKids;
 
-        // Resolve package & base price if not explicitly given
+        // Resolve base price by booking mode (Package vs Per-Guest)
         let resolvedBasePrice = parseFloat(basePrice);
         let resolvedDeposit = parseFloat(depositRequired);
         let packageTitle = birthdayDetails.packageName;
 
-        if (eventType === "birthday") {
-            const pkgId = birthdayDetails.packageId || "champion";
-            const pkg = BIRTHDAY_PACKAGES.find(p => p.id === pkgId) || BIRTHDAY_PACKAGES[1];
-            if (isNaN(resolvedBasePrice)) resolvedBasePrice = pkg.basePrice;
-            if (isNaN(resolvedDeposit)) resolvedDeposit = pkg.deposit;
-            packageTitle = pkg.nameEn;
+        if (bookingMode === "per_guest") {
+            const guestPrice = parseFloat(pricePerGuest) || 350;
+            if (isNaN(resolvedBasePrice) || resolvedBasePrice <= 0) {
+                resolvedBasePrice = guestsNum * guestPrice;
+            }
+            packageTitle = `حجز بعدد الأفراد (${guestsNum} ضيف)`;
+            birthdayDetails.packageId = "custom";
+            birthdayDetails.packageName = packageTitle;
         } else {
-            // General hall or family
-            if (isNaN(resolvedBasePrice)) resolvedBasePrice = 4500;
-            if (isNaN(resolvedDeposit)) resolvedDeposit = Math.round(resolvedBasePrice * 0.3);
+            // Package Mode
+            if (eventType === "birthday") {
+                const pkgId = birthdayDetails.packageId || "champion";
+                const pkg = BIRTHDAY_PACKAGES.find(p => p.id === pkgId) || BIRTHDAY_PACKAGES[1];
+                if (isNaN(resolvedBasePrice)) resolvedBasePrice = pkg.basePrice;
+                if (isNaN(resolvedDeposit)) resolvedDeposit = pkg.deposit;
+                packageTitle = pkg.nameEn;
+            } else {
+                // General hall or family
+                if (isNaN(resolvedBasePrice)) resolvedBasePrice = 4500;
+                if (isNaN(resolvedDeposit)) resolvedDeposit = Math.round(resolvedBasePrice * 0.3);
+            }
         }
 
         // Space info
@@ -254,10 +290,26 @@ const createEventBooking = async (req, res) => {
         const spaceTitle = matchedSpace.titleEn;
         const fee = venueFee || matchedSpace.fee || 0;
 
-        // Calculate 14% VAT (Standard Egyptian Tax)
+        // Sanitize and calculate add-on items total
+        let itemsSum = 0;
+        const sanitizedItems = Array.isArray(selectedItems) ? selectedItems.map(it => ({
+            id: String(it.id || ""),
+            title: it.title || it.name || "إضافة خاصة",
+            price: Math.max(0, parseFloat(it.price || 0) || 0),
+            quantity: Math.max(1, parseInt(it.quantity || 1, 10)),
+            image: it.image || ""
+        })) : [];
+        itemsSum = sanitizedItems.reduce((acc, it) => acc + (it.price * it.quantity), 0);
+
+        // Subtotal, 14% VAT, and Grand Total
+        const subtotal = resolvedBasePrice + itemsSum;
         const vatRate = 0.14;
-        const vatAmount = Math.round(resolvedBasePrice * vatRate);
-        const totalAmount = resolvedBasePrice + fee + vatAmount;
+        const vatAmount = Math.round(subtotal * vatRate);
+        const totalAmount = subtotal + fee + vatAmount;
+
+        if (isNaN(resolvedDeposit) || resolvedDeposit <= 0) {
+            resolvedDeposit = Math.round(totalAmount * 0.3);
+        }
 
         // Generate Code
         let code = customCode;
@@ -292,10 +344,14 @@ const createEventBooking = async (req, res) => {
             title: title || `${packageTitle || spaceTitle} Reservation`,
             space,
             spaceTitle,
+            bookingMode,
+            pricePerGuest: bookingMode === "per_guest" ? (parseFloat(pricePerGuest) || 350) : 0,
+            selectedItems: sanitizedItems,
+            itemsTotal: itemsSum,
             birthdayDetails: {
                 celebrantName: birthdayDetails.celebrantName || "",
                 celebrantAge: birthdayDetails.celebrantAge || "",
-                packageId: birthdayDetails.packageId || "champion",
+                packageId: birthdayDetails.packageId || (bookingMode === "per_guest" ? "custom" : "champion"),
                 packageName: packageTitle || "Champion Quest"
             },
             totalGuests: guestsNum,

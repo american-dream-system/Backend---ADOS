@@ -43,6 +43,10 @@ const guestSchema = new Schema({
         type: Number,
         default: 0
     },
+    isVip: {
+        type: Boolean,
+        default: false
+    },
     refreshToken: {
         type: String
     },

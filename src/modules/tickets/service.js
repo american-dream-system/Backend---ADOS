@@ -15,35 +15,59 @@ const getAllTickets = async (req, res) => {
         const filter = {};
 
         // 1. Zone / Page filtering
-        const zoneParam = req.query.zone || req.query.targetPage;
-        if (zoneParam) {
-            filter.page = zoneParam;
-        } else if (req.query.page && isNaN(req.query.page)) {
-            filter.page = req.query.page;
+        const zoneParam = req.query.zone || req.query.targetPage || (req.query.page && isNaN(req.query.page) ? req.query.page : null);
+        if (zoneParam && zoneParam !== 'all') {
+            const z = String(zoneParam).toLowerCase().replace(/[-_\s]/g, '');
+            if (z.includes('kid')) {
+                filter.page = { $in: ['kids-area', 'kidsArea', 'kidArea'] };
+            } else if (z.includes('fun')) {
+                filter.page = { $in: ['fun-park', 'funZone', 'funpark'] };
+            } else if (z.includes('chal')) {
+                filter.page = { $in: ['challenge', 'challengeZone'] };
+            } else if (z.includes('adv')) {
+                filter.page = { $in: ['adventure', 'adventureZone'] };
+            } else if (z.includes('pack')) {
+                filter.page = { $in: ['packages', 'package'] };
+            } else {
+                filter.page = zoneParam;
+            }
         }
 
         // 2. Timing filtering (e.g. midweek, weekend)
-        if (req.query.timing) {
+        if (req.query.timing && req.query.timing !== 'all') {
             filter.timing = req.query.timing;
         }
 
-        // 3. Pagination
+        // 3. Search query
+        if (req.query.search) {
+            const s = new RegExp(req.query.search, 'i');
+            filter.$or = [
+                { title: s },
+                { titleAr: s },
+                { titleEn: s },
+                { description: s }
+            ];
+        }
+
+        // 4. Pagination
         const pageNum = (!isNaN(req.query.page) && parseInt(req.query.page) > 0) ? parseInt(req.query.page) : 1;
-        const limit = parseInt(req.query.limit) || 50;
+        const limit = parseInt(req.query.limit) || 100;
         const skip = (pageNum - 1) * limit;
 
         const total = await ticketModel.countDocuments(filter);
-        const tickets = await ticketModel.find(filter).skip(skip).limit(limit);
+        const tickets = await ticketModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit);
 
         res.status(200).json({
+            success: true,
             message: "Tickets fetched successfully",
             results: tickets.length,
             total,
             page: pageNum,
-            tickets
+            tickets,
+            data: tickets
         });
     } catch (error) {
-        res.status(500).json({ message: error.message || "Failed to fetch tickets" });
+        res.status(500).json({ success: false, message: error.message || "Failed to fetch tickets" });
     }
 }
 

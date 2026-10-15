@@ -14,12 +14,11 @@ const ticketSchema = new mongoose.Schema({
         default: ""
     },
     category: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "packageCategory"
+        type: mongoose.Schema.Types.Mixed,
+        default: ""
     },
     page: {
         type: String,
-        enum: ["funZone", "kidsArea", "challengeZone", "adventureZone"],
         required: true
     },
     timing: {
@@ -33,7 +32,7 @@ const ticketSchema = new mongoose.Schema({
     },
     priceAfterDiscount: {
         type: Number,
-        required: true
+        default: 0
     },
     pointsGets: {
         type: Number,
@@ -88,34 +87,44 @@ const ticketSchema = new mongoose.Schema({
     },
     age: {
         type: String,
-        required: true
+        default: "All Ages"
     },
     ageAr: {
         type: String,
-        default: ""
+        default: "جميع الأعمار"
     },
     priceType: {
         type: String,
-        enum: ["hour", "game", "all-day"],
         default: "all-day"
     },
     hourPrice: {
-        type: Number
+        type: Number,
+        default: 0
     },
     gamesPrice: {
-        type: Number
+        type: Number,
+        default: 0
     },
     image: {
         type: String,
-        required: true
+        default: ""
     },
     thumb: {
-        type: String
+        type: String,
+        default: ""
+    },
+    unit: {
+        type: String,
+        default: "/ ticket"
+    },
+    active: {
+        type: Boolean,
+        default: true
     },
     used: {
         type: Boolean,
         default: false
     }
-}, { timestamps: true });
+}, { timestamps: true, strict: false });
 
 module.exports = mongoose.model("ticket", ticketSchema);

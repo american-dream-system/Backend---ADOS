@@ -1,6 +1,19 @@
 const { check } = require("express-validator");
 const validatorMiddleware = require("../../middlewares/validatorMiddlewar");
 
+const ALLOWED_PAGES = [
+    "packages",
+    "package",
+    "challenge",
+    "challengeZone",
+    "adventure",
+    "adventureZone",
+    "kids-area",
+    "kidsArea",
+    "fun-park",
+    "funZone"
+];
+
 // @desc التحقق من صحة بيانات إنشاء تذكرة جديدة
 const createTicketValidator = [
     check("title")
@@ -16,7 +29,7 @@ const createTicketValidator = [
         }),
 
     check("priceAfterDiscount")
-        .notEmpty().withMessage("السعر بعد الخصم مطلوب")
+        .optional()
         .isNumeric().withMessage("السعر بعد الخصم يجب أن يكون رقماً")
         .custom((val, { req }) => {
             if (val < 0) throw new Error("السعر بعد الخصم لا يمكن أن يكون سالباً");
@@ -27,28 +40,22 @@ const createTicketValidator = [
         }),
 
     check("pointsGets")
-        .notEmpty().withMessage("نقاط الولاء المكتسبة مطلوبة")
-        .isNumeric().withMessage("نقاط الولاء يجب أن تكون رقماً")
-        .custom((val) => {
-            if (val < 0) throw new Error("نقاط الولاء لا يمكن أن تكون سالبة");
-            return true;
-        }),
+        .optional()
+        .isNumeric().withMessage("نقاط الولاء يجب أن تكون رقماً"),
 
     check("description")
-        .notEmpty().withMessage("وصف التذكرة مطلوب"),
+        .optional(),
 
     check("page")
-        .notEmpty().withMessage("المنطقة أو الصفحة التابعة لها التذكرة مطلوبة")
-        .isIn(["funZone", "kidsArea", "challengeZone", "adventureZone"])
-        .withMessage("المنطقة غير صحيحة، الخيارات المتاحة: (funZone, kidsArea, challengeZone, adventureZone)"),
+        .notEmpty().withMessage("الصفحة أو المنطقة التابعة لها التذكرة مطلوبة")
+        .isIn(ALLOWED_PAGES)
+        .withMessage("المنطقة غير صحيحة، الصفحات المتاحة: (packages, challenge, adventure, kids-area, fun-park)"),
 
     check("priceType")
-        .notEmpty().withMessage("نوع التسعير مطلوب")
-        .isIn(["hour", "game", "all-day"])
-        .withMessage("نوع التسعير يجب أن يكون إما بالساعة (hour) أو باللعبة (game) أو طوال اليوم (all-day)"),
+        .optional(),
 
     check("hourPrice")
-        .notEmpty().withMessage("سعر الساعة مطلوب")
+        .optional()
         .isNumeric().withMessage("سعر الساعة يجب أن يكون رقماً"),
 
     check("gamesPrice")
@@ -56,10 +63,10 @@ const createTicketValidator = [
         .isNumeric().withMessage("سعر الألعاب يجب أن يكون رقماً"),
 
     check("age")
-        .notEmpty().withMessage("الفئة العمرية المسموح بها مطلوبة (مثل: Ages 1-6 أو Ages 8+)"),
+        .optional(),
 
     check("image")
-        .notEmpty().withMessage("صورة التذكرة مطلوبة"),
+        .optional(),
 
     validatorMiddleware
 ];
@@ -91,13 +98,11 @@ const updateTicketValidator = [
 
     check("page")
         .optional()
-        .isIn(["funZone", "kidsArea", "challengeZone", "adventureZone"])
-        .withMessage("المنطقة غير صحيحة، الخيارات المتاحة: (funZone, kidsArea, challengeZone, adventureZone)"),
+        .isIn(ALLOWED_PAGES)
+        .withMessage("المنطقة غير صحيحة، الصفحات المتاحة: (packages, challenge, adventure, kids-area, fun-park)"),
 
     check("priceType")
-        .optional()
-        .isIn(["hour", "game", "all-day"])
-        .withMessage("نوع التسعير يجب أن يكون إما بالساعة (hour) أو باللعبة (game) أو طوال اليوم (all-day)"),
+        .optional(),
 
     check("hourPrice")
         .optional()
@@ -122,5 +127,7 @@ module.exports = {
     createTicketValidator,
     getTicketValidator,
     updateTicketValidator,
-    deleteTicketValidator
+    deleteTicketValidator,
+    ALLOWED_PAGES
 };
+

@@ -12,7 +12,14 @@ const createEventBookingValidator = [
     check("space")
         .notEmpty().withMessage("مكان أو قاعة الحفل مطلوبة")
         .isIn(["indoor", "roof", "outdoor", "grand_ballroom"])
-        .withMessage("القاعة المختارة غير صحيحة (indoor, roof, outdoor, grand_ballroom)"),
+        .withMessage("القاعة المختارة غير صحيحة (indoor, roof, outdoor, grand_ballroom)")
+        .custom((val, { req }) => {
+            const eventType = req.body.eventType || "birthday";
+            if (eventType !== "birthday" && val === "outdoor") {
+                throw new Error("المساحة الخارجية (Outdoor) مخصصة لأعياد الميلاد فقط، يرجى اختيار القاعة الداخلية أو الرووف");
+            }
+            return true;
+        }),
 
     check("eventDate")
         .notEmpty().withMessage("تاريخ المناسبة مطلوب")
@@ -25,7 +32,15 @@ const createEventBookingValidator = [
 
     check("totalGuests")
         .optional()
-        .isInt({ min: 1 }).withMessage("عدد الضيوف يجب أن يكون 1 على الأقل"),
+        .isInt({ min: 1 }).withMessage("عدد الضيوف يجب أن يكون 1 على الأقل")
+        .custom((val, { req }) => {
+            const eventType = req.body.eventType || "birthday";
+            const space = req.body.space;
+            if (eventType === "birthday" && space === "outdoor" && Number(val) > 20) {
+                throw new Error("أقصى عدد أفراد لعيد الميلاد في الحديقة الخارجية (Outdoor) هو 20 فرداً");
+            }
+            return true;
+        }),
 
     validatorMiddleware
 ];

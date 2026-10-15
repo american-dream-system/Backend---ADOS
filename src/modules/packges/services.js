@@ -58,23 +58,45 @@ const getAllPackages = async (req, res, next) => {
         const filter = {};
 
         // Zone / Target Page filtering
-        const zoneParam = req.query.zone || req.query.targetPage;
-        if (zoneParam) {
-            filter.$or = [
-                { page: zoneParam },
-                { page: new RegExp(zoneParam, 'i') },
-                { title: new RegExp(zoneParam, 'i') },
-                { titleAr: new RegExp(zoneParam, 'i') }
-            ];
-        } else if (req.query.page && isNaN(req.query.page)) {
-            filter.$or = [
-                { page: req.query.page },
-                { page: new RegExp(req.query.page, 'i') }
-            ];
+        const zoneParam = req.query.zone || req.query.targetPage || (req.query.page && isNaN(req.query.page) ? req.query.page : null);
+        if (zoneParam && zoneParam !== 'all') {
+            const z = String(zoneParam).toLowerCase().replace(/[-_\s]/g, '');
+            if (z.includes('kid')) {
+                filter.$or = [
+                    { page: { $in: ['kids-area', 'kidsArea', 'kidArea'] } },
+                    { category: { $in: ['kids-area', 'kidsArea', 'kidArea'] } }
+                ];
+            } else if (z.includes('fun')) {
+                filter.$or = [
+                    { page: { $in: ['fun-park', 'funZone', 'funpark'] } },
+                    { category: { $in: ['fun-park', 'funZone', 'funpark'] } }
+                ];
+            } else if (z.includes('chal')) {
+                filter.$or = [
+                    { page: { $in: ['challenge', 'challengeZone'] } },
+                    { category: { $in: ['challenge', 'challengeZone'] } }
+                ];
+            } else if (z.includes('adv')) {
+                filter.$or = [
+                    { page: { $in: ['adventure', 'adventureZone'] } },
+                    { category: { $in: ['adventure', 'adventureZone'] } }
+                ];
+            } else if (z.includes('pack')) {
+                filter.$or = [
+                    { page: { $in: ['packages', 'package'] } },
+                    { category: { $in: ['packages', 'package'] } }
+                ];
+            } else {
+                filter.$or = [
+                    { page: zoneParam },
+                    { page: new RegExp(zoneParam, 'i') },
+                    { category: zoneParam }
+                ];
+            }
         }
 
         // Timing / Category filtering
-        if (req.query.category) {
+        if (req.query.category && !filter.category && !filter.$or) {
             filter.category = req.query.category;
         }
 
@@ -89,7 +111,25 @@ const getAllPackages = async (req, res, next) => {
             filter.page = { $ne: 'birthday' };
         }
 
-        let query = packageModel.find(filter);
+        // Search query
+        if (req.query.search) {
+            const s = new RegExp(req.query.search, 'i');
+            filter.$and = [
+                {
+                    $or: [
+                        { title: s },
+                        { titleAr: s },
+                        { titleEn: s },
+                        { subtitle: s },
+                        { subtitleAr: s },
+                        { subtitleEn: s },
+                        { description: s }
+                    ]
+                }
+            ];
+        }
+
+        let query = packageModel.find(filter).sort({ createdAt: -1 });
 
         // Numeric pagination
         const isNumericPage = req.query.page && !isNaN(req.query.page);
@@ -200,6 +240,29 @@ const deletePackage = async (req, res, next) => {
     }
 };
 
+// @desc Delete category and reset associated packages
+// @route DELETE /api/packages/categories/:category
+const deleteCategory = async (req, res, next) => {
+    try {
+        const { category } = req.params;
+        if (!category) {
+            return res.status(400).json({ success: false, message: "Category is required" });
+        }
+        const regex = new RegExp(`^${category}$`, 'i');
+        const result = await packageModel.updateMany(
+            { category: regex },
+            { $set: { category: 'general' } }
+        );
+        res.status(200).json({
+            success: true,
+            message: `Category ${category} deleted and associated packages updated to general`,
+            modifiedCount: result.modifiedCount
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     createPackage,
     getAllPackages,
@@ -207,5 +270,6 @@ module.exports = {
     getPackageById,
     updatePackage,
     deletePackage,
+    deleteCategory,
     resizePackageImage
 };

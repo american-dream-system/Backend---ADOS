@@ -49,16 +49,39 @@ const eventBookingSchema = new mongoose.Schema({
         default: "Indoor Hall"
     },
 
+    // Booking System Mode (By Package OR By Guests Count)
+    bookingMode: {
+        type: String,
+        enum: ["package", "per_guest"],
+        default: "package"
+    },
+    pricePerGuest: {
+        type: Number,
+        default: 0
+    },
+
     // Birthday-specific options
     birthdayDetails: {
         celebrantName: { type: String, default: "" },
         celebrantAge: { type: String, default: "" },
         packageId: {
             type: String,
-            enum: ["explorer", "champion", "vip", "custom", "none"],
             default: "champion"
         },
         packageName: { type: String, default: "Champion Quest" }
+    },
+
+    // Add Items Feature (Cards created by Admin)
+    selectedItems: [{
+        id: { type: String },
+        title: { type: String },
+        price: { type: Number, default: 0 },
+        quantity: { type: Number, default: 1 },
+        image: { type: String, default: "" }
+    }],
+    itemsTotal: {
+        type: Number,
+        default: 0
     },
 
     // Guests & Attendance

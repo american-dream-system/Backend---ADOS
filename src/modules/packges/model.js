@@ -5,8 +5,25 @@ const packageSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    titleAr: {
+        type: String,
+        default: ""
+    },
+    titleEn: {
+        type: String,
+        default: ""
+    },
     subtitle: {
-        type: String
+        type: String,
+        default: ""
+    },
+    subtitleAr: {
+        type: String,
+        default: ""
+    },
+    subtitleEn: {
+        type: String,
+        default: ""
     },
     price: {
         type: Number,
@@ -22,20 +39,59 @@ const packageSchema = new mongoose.Schema({
     },
     description: {
         type: String,
+        default: ""
+    },
+    descriptionAr: {
+        type: String,
+        default: ""
+    },
+    descriptionEn: {
+        type: String,
+        default: ""
     },
     feature: {
         type: [String],
         default: []
+    },
+    features: {
+        type: [String],
+        default: []
+    },
+    featuresAr: {
+        type: [String],
+        default: []
+    },
+    featuresEn: {
+        type: [String],
+        default: []
+    },
+    saveBadge: {
+        type: String,
+        default: ""
+    },
+    saveBadgeAr: {
+        type: String,
+        default: ""
+    },
+    saveBadgeEn: {
+        type: String,
+        default: ""
+    },
+    age: {
+        type: String,
+        default: "جميع الأعمار"
     },
     image: {
         type: String,
         default: ""
     },
     page: {
-        type: String
+        type: String,
+        default: "packages"
     },
     category: {
-        type: String
+        type: String,
+        default: "packages"
     },
     active: {
         type: Boolean,

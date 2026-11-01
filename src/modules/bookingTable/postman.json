@@ -71,7 +71,7 @@
             "booking-table"
           ]
         },
-        "description": "Books a table with Step 1 Area (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area) and Step 2 Table details (numberOfPerson, date, time, notes)."
+        "description": "Books a table with Step 1 Area (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area, Outdoor Family Area, Outdoor Smoking Area, Indoor Quiet Area, VIP Area) and Step 2 Table details (numberOfPerson, date, time, notes)."
       },
       "response": []
     },

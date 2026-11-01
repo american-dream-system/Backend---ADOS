@@ -5,8 +5,8 @@ const validatorMiddleware = require("../../middlewares/validatorMiddlewar");
 const createBookingTableValidator = [
     check("area")
         .notEmpty().withMessage("منطقة الجلوس مطلوبة (Step 1)")
-        .isIn(["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area"])
-        .withMessage("المنطقة المختارة غير صحيحة، الخيارات: (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area)"),
+        .isIn(["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area", "Outdoor Family Area", "Outdoor Smoking Area", "Indoor Quiet Area", "VIP Area"])
+        .withMessage("المنطقة المختارة غير صحيحة، الخيارات: (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area, Outdoor Family Area, Outdoor Smoking Area, Indoor Quiet Area, VIP Area)"),
 
     check("date")
         .notEmpty().withMessage("تاريخ الحجز مطلوب")
@@ -73,8 +73,8 @@ const updateBookingTableValidator = [
 
     check("area")
         .optional()
-        .isIn(["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area"])
-        .withMessage("المنطقة المختارة غير صحيحة، الخيارات: (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area)"),
+        .isIn(["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area", "Outdoor Family Area", "Outdoor Smoking Area", "Indoor Quiet Area", "VIP Area"])
+        .withMessage("المنطقة المختارة غير صحيحة، الخيارات: (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area, Outdoor Family Area, Outdoor Smoking Area, Indoor Quiet Area, VIP Area)"),
 
     check("numberOfPerson")
         .optional()
@@ -111,7 +111,7 @@ const checkAvailabilityValidator = [
 
     check("area")
         .optional()
-        .isIn(["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area"])
+        .isIn(["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area", "Outdoor Family Area", "Outdoor Smoking Area", "Indoor Quiet Area", "VIP Area"])
         .withMessage("المنطقة المختارة غير صحيحة"),
 
     validatorMiddleware

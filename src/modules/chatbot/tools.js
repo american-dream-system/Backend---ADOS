@@ -79,7 +79,7 @@ const chatbotToolDeclarations = [
                 },
                 area: {
                     type: "STRING",
-                    description: "منطقة الجلوس: Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area"
+                    description: "منطقة الجلوس: Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area, Outdoor Family Area, Outdoor Smoking Area, Indoor Quiet Area, VIP Area"
                 }
             },
             required: ["date", "time"]
@@ -113,7 +113,7 @@ const chatbotToolDeclarations = [
                 },
                 area: {
                     type: "STRING",
-                    description: "منطقة الجلوس المفضلة (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area)"
+                    description: "منطقة الجلوس المفضلة (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area, Outdoor Family Area, Outdoor Smoking Area, Indoor Quiet Area, VIP Area)"
                 },
                 notes: {
                     type: "STRING",
@@ -599,7 +599,7 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
                         { name: "adventureZone", title: "منطقة المغامرات", desc: "متاهات وسيارات سباق وتجارب شيقة" }
                     ],
                     restaurant: {
-                        areas: ["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area"],
+                        areas: ["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area", "Outdoor Family Area", "Outdoor Smoking Area", "Indoor Quiet Area", "VIP Area"],
                         cuisines: ["برجر أمريكي فاخر", "بيتزا إيطالية", "مشويات", "وجبات أطفال", "عصائر وحلويات ومشروبات ساخنة"]
                     },
                     contact: {

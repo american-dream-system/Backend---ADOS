@@ -18,7 +18,7 @@ const bookingTableSchema = new mongoose.Schema({
     },
     area: {
         type: String,
-        enum: ["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area"],
+        enum: ["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area", "Outdoor Family Area", "Outdoor Smoking Area", "Indoor Quiet Area", "VIP Area"],
         required: true
     },
     date: {

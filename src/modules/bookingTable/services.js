@@ -40,7 +40,7 @@ const createBookingTable = async (req, res, next) => {
         if (!area) {
             return res.status(400).json({
                 success: false,
-                message: "Please choose an area (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area)"
+                message: "Please choose an area (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area, Outdoor Family Area, Outdoor Smoking Area, Indoor Quiet Area, VIP Area)"
             });
         }
 

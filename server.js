@@ -19,6 +19,7 @@ const tripsRoutes = require("./src/modules/trips/routes");
 const eventsRoutes = require("./src/modules/events/routes");
 const loyaltyRoutes = require("./src/modules/loyalty/routes");
 const notificationsRoutes = require("./src/modules/notifications/routes");
+const playzoneHomeRoutes = require("./src/modules/playzoneHome/routes");
 const morgan = require("morgan");
 const path = require("path");
 const swaggerUi = require("swagger-ui-express");
@@ -68,6 +69,7 @@ app.use("/api/events", eventsRoutes);
 app.use("/api/loyalty", loyaltyRoutes);
 app.use("/api/points", loyaltyRoutes);
 app.use("/api/notifications", notificationsRoutes);
+app.use("/api/playzone-home", playzoneHomeRoutes);
 
 // Not found route
 app.use((req, res, next) => {

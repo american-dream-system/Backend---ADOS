@@ -35,8 +35,12 @@ const ngrok = require("@ngrok/ngrok");
 const cors = require("cors");
 const compression = require("compression");
 const { publicCache, flushOnWrite } = require("./src/middlewares/responseCache");
+const { realClientIp } = require("./src/middlewares/clientIp");
 
 const app = express();
+// One proxy hop (Traefik) is trusted; behind Cloudflare the real visitor IP is then read from CF-Connecting-IP
+app.set("trust proxy", 1);
+app.use(realClientIp);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 

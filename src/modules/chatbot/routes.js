@@ -16,6 +16,7 @@ const {
     sessionIdParamValidator
 } = require("./validator");
 
+const { protectGuest } = require("../../middlewares/authMiddleware");
 const { verifyToken } = require("../../utils/token");
 const guestModel = require("../guests/model");
 
@@ -57,7 +58,7 @@ router.post("/", optionalGuestAuth, sendMessageValidator, sendMessage);
 
 // Session management
 router.post("/session", optionalGuestAuth, createSessionValidator, createSession);
-router.get("/sessions", optionalGuestAuth, listSessions);
+router.get("/sessions", protectGuest, listSessions);
 router.get("/session/:sessionId", sessionIdParamValidator, getSessionHistory);
 router.delete("/session/:sessionId", sessionIdParamValidator, clearSession);
 

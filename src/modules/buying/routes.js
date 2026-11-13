@@ -31,6 +31,9 @@ const {
 } = require("./validator");
 
 const { protectGuest, allowedTo, adminOnly } = require("../../middlewares/authMiddleware");
+const { ownRecord, byId, byCode, ownGuestParam, ownGuestTarget } = require("../../middlewares/ownership");
+const buyingModel = require("./model");
+const own = { guestFields: ["guest"], phoneFields: ["guestPhone"] };
 
 // 1. Get official payment accounts (InstaPay, Vodafone Cash, Cash rules)
 router.get("/payment-accounts", getPaymentAccounts);
@@ -80,16 +83,16 @@ router.patch(
 );
 
 // 7. Get all purchases (supports pagination & filtering)
-router.get("/", getAllBuyings);
+router.get("/", adminOnly, getAllBuyings);
 
 // 8. Find purchase by QR / order code (PZ-XXXXXX)
-router.get("/code/:code", getBuyingByCodeValidator, getBuyingByCode);
+router.get("/code/:code", ownRecord(byCode(buyingModel, "orderCode"), own), getBuyingByCodeValidator, getBuyingByCode);
 
 // 9. Find all purchases for a guest
-router.get("/guest/:guestId", getBuyingsByGuestValidator, getBuyingsByGuest);
+router.get("/guest/:guestId", ownGuestParam(), getBuyingsByGuestValidator, getBuyingsByGuest);
 
 // 10. Find purchase by MongoDB ID
-router.get("/:id", getBuyingValidator, getBuyingById);
+router.get("/:id", ownRecord(byId(buyingModel), own), getBuyingValidator, getBuyingById);
 
 // 11. Redeem / scan pass at turnstile gate by code or ID
 router.patch("/code/:code/redeem", adminOnly, redeemBuyingValidator, redeemBuying);

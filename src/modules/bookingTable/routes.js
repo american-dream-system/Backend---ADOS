@@ -1,6 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const { adminOnly } = require("../../middlewares/authMiddleware");
+const { ownRecord, byId, byCode, ownGuestParam, ownGuestTarget } = require("../../middlewares/ownership");
+const BookingTable = require("./model");
+const own = { guestFields: ["guest"], phoneFields: ["guestPhone"] };
 const {
     createBookingTable,
     getAllBookingTables,
@@ -27,19 +30,19 @@ const {
 router.post("/", createBookingTableValidator, createBookingTable);
 
 // Get all bookings (with pagination & filters)
-router.get("/", getAllBookingTables);
+router.get("/", adminOnly, getAllBookingTables);
 
 // Check seat & table availability for a specific date/time/area
 router.get("/availability", checkAvailabilityValidator, checkAvailability);
 
 // Get booking by unique reservation code (TB-XXXXXX)
-router.get("/code/:code", getBookingTableByCodeValidator, getBookingTableByCode);
+router.get("/code/:code", ownRecord(byCode(BookingTable, "bookingCode"), own), getBookingTableByCodeValidator, getBookingTableByCode);
 
 // Get all bookings for a specific guest
-router.get("/guest/:guestId", getBookingsByGuestValidator, getBookingsByGuest);
+router.get("/guest/:guestId", ownGuestParam(), getBookingsByGuestValidator, getBookingsByGuest);
 
 // Get booking by ID
-router.get("/:id", getBookingTableValidator, getBookingTableById);
+router.get("/:id", ownRecord(byId(BookingTable), own), getBookingTableValidator, getBookingTableById);
 
 // Update booking details
 router.put("/:id", adminOnly, updateBookingTableValidator, updateBookingTable);

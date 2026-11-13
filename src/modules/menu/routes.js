@@ -1,6 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const { adminOnly } = require("../../middlewares/authMiddleware");
+const { ownRecord, byId, byCode, ownGuestParam, ownGuestTarget } = require("../../middlewares/ownership");
+const menuOrderModel = require("./orderModel");
+const findOrder = async (req) => {
+    const id = String(req.params.id || "").trim().replace(/^#/, "");
+    return /^[0-9a-fA-F]{24}$/.test(id) ? menuOrderModel.findById(id).lean() : menuOrderModel.findOne({ orderCode: id }).lean();
+};
+const ownOrder = { guestFields: ["guest", "user"], phoneFields: ["customerPhone"] };
 const { uploadSingleImage } = require("../../middlewares/uploadImages");
 const {
     resizeMenuItemImage,
@@ -34,7 +41,7 @@ router.post("/seed", adminOnly, seedMenu);
 router.get("/categories", getCategories);
 
 // @route GET & POST for orders
-router.get("/orders", getAllOrders);
+router.get("/orders", adminOnly, getAllOrders);
 router.post(
     "/order",
     uploadSingleImage("paymentProof"),
@@ -42,7 +49,7 @@ router.post(
     placeOrderValidator,
     placeOrder
 );
-router.get("/orders/:id", getOrderById);
+router.get("/orders/:id", ownRecord(findOrder, ownOrder), getOrderById);
 router.put("/orders/:id/status", adminOnly, updateOrderStatus);
 
 // @route GET & POST for menu items

@@ -12,10 +12,10 @@ const {
 } = require("./services");
 
 // List notifications with pagination & filtering
-router.get("/", getAllNotifications);
+router.get("/", adminOnly, getAllNotifications);
 
 // Get unread badge count
-router.get("/unread-count", getUnreadCount);
+router.get("/unread-count", adminOnly, getUnreadCount);
 
 // Mark all as read
 router.patch("/mark-all-read", adminOnly, markAllAsRead);

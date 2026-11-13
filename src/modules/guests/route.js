@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { adminOnly } = require("../../middlewares/authMiddleware");
+const { ownGuestTarget } = require("../../middlewares/ownership");
 
 const {
     createGuest,
@@ -46,16 +47,16 @@ const protectAdminOrDashboard = async (req, res, next) => {
 // ==========================================
 
 // Aggregated summary of all guests for admin dashboard
-router.get("/summary", protectAdminOrDashboard, getAllGuestsSummary);
+router.get("/summary", adminOnly, getAllGuestsSummary);
 
 // Full history by query params
-router.get("/full-history", protectAdminOrDashboard, getGuestFullHistory);
-router.get("/history", protectAdminOrDashboard, getGuestFullHistory);
+router.get("/full-history", ownGuestTarget, getGuestFullHistory);
+router.get("/history", ownGuestTarget, getGuestFullHistory);
 
 // Full history by ID or Phone
-router.get("/:id/full-history", protectAdminOrDashboard, getGuestFullHistory);
-router.get("/:id/history", protectAdminOrDashboard, getGuestFullHistory);
-router.get("/:id/transactions", protectAdminOrDashboard, getGuestFullHistory);
+router.get("/:id/full-history", ownGuestTarget, getGuestFullHistory);
+router.get("/:id/history", ownGuestTarget, getGuestFullHistory);
+router.get("/:id/transactions", ownGuestTarget, getGuestFullHistory);
 
 // ==========================================
 // GUEST CRUD ROUTES (Admin / Dashboard)
@@ -63,10 +64,10 @@ router.get("/:id/transactions", protectAdminOrDashboard, getGuestFullHistory);
 
 router.route("/")
     .post(adminOnly, createGuestValidator, createGuest)
-    .get(protectAdminOrDashboard, getAllGuests);
+    .get(adminOnly, getAllGuests);
 
 router.route("/:id")
-    .get(protectAdminOrDashboard, getGuestValidator, getGuestById)
+    .get(ownGuestTarget, getGuestValidator, getGuestById)
     .put(adminOnly, updateGuestValidator, updateGuest)
     .delete(adminOnly, deleteGuestValidator, deleteGuest);
 

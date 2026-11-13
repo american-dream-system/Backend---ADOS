@@ -514,8 +514,9 @@ const getAllEvents = async (req, res) => {
 // @access Public / Auth
 const getMyEvents = async (req, res) => {
     try {
-        const guestId = req.guest?._id || req.query.guestId;
-        const phone = req.query.phone || req.guest?.phone;
+        const admin = req.guest?.role === "admin";
+        const guestId = req.guest?._id || (admin ? req.query.guestId : undefined);
+        const phone = admin ? (req.query.phone || req.guest?.phone) : req.guest?.phone;
 
         if (!guestId && !phone) {
             return res.status(400).json({

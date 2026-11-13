@@ -1,4 +1,19 @@
 const Media = require("./model");
+const { normalizeImagePath, normalizeOwnMediaUrlsDeep } = require("../../utils/mediaPath");
+
+// Never persist absolute / localhost URLs: keep relative paths and bare file names only.
+const normalizeMediaFields = (fields) => {
+    if (Array.isArray(fields.images)) fields.images = fields.images.map(normalizeImagePath);
+    if (Array.isArray(fields.items)) {
+        fields.items = fields.items.map((it) =>
+            it && typeof it.image === "string" ? { ...it, image: normalizeImagePath(it.image) } : it
+        );
+    }
+    if (fields.extraData && typeof fields.extraData === "object") {
+        fields.extraData = normalizeOwnMediaUrlsDeep(fields.extraData);
+    }
+    return fields;
+};
 
 // @desc uploadImage 
 // @routes POST /api/media
@@ -25,7 +40,7 @@ const upload = async (req, res) => {
             return res.status(400).json({ success: false, message: "Page and section are required" });
         }
 
-        const media = await Media.create({ 
+        const media = await Media.create(normalizeMediaFields({
             page, 
             section, 
             name: name || `${page}-${section}`, 
@@ -38,8 +53,8 @@ const upload = async (req, res) => {
             images: images || [], 
             items: items || [], 
             extraData: extraData || {}, 
-            isActive: isActive !== undefined ? isActive : true 
-        });
+            isActive: isActive !== undefined ? isActive : true
+        }));
 
         res.status(201).json({ success: true, data: media });
     } catch (error) {
@@ -193,7 +208,7 @@ const updateMediaForSection = async (req, res) => {
 
         const updatedMedia = await Media.findOneAndUpdate(
             { page, section },
-            { $set: updateFields },
+            { $set: normalizeMediaFields(updateFields) },
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 

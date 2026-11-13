@@ -4,6 +4,7 @@ const { uploadSingleImage } = require("../../middlewares/uploadImages");
 const {
     resizePaymentProofImage,
     getPaymentAccounts,
+    getPaymentProof,
     createBuying,
     uploadPaymentProof,
     verifyPayment,
@@ -37,6 +38,9 @@ const own = { guestFields: ["guest"], phoneFields: ["guestPhone"] };
 
 // 1. Get official payment accounts (InstaPay, Vodafone Cash, Cash rules)
 router.get("/payment-accounts", getPaymentAccounts);
+
+// 1b. Admin/cashier only: payment receipt images are never served publicly
+router.get("/payment-proof/:file", protectGuest, allowedTo("admin", "cashier"), getPaymentProof);
 
 // 2. Admin: Get all purchases pending payment receipt verification
 router.get("/pending-verification", protectGuest, allowedTo("admin", "cashier"), getPendingVerifications);

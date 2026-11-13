@@ -45,7 +45,22 @@ app.use(compression()); // gzip/deflate for JSON and text responses
 app.use(morgan("dev")); //logging
 // Uploaded media names contain a timestamp + random id, so a file never changes: cache hard.
 app.use("/media", express.static(path.join(__dirname, "upload/media"), { maxAge: "30d", immutable: true, etag: true }));
-app.use(express.static(path.join(__dirname, "upload"))); // to serve static files
+// A reference to a file that is not on disk gets a neutral placeholder instead of a broken image.
+// Not cached, so the real file shows up as soon as it exists.
+const MISSING_IMAGE_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">' +
+    '<rect width="800" height="600" fill="#e5e7eb"/>' +
+    '<path d="M250 400l100-120 80 90 60-70 60 100z" fill="#9ca3af"/><circle cx="330" cy="230" r="34" fill="#9ca3af"/>' +
+    '</svg>';
+app.use("/media", (req, res, next) => {
+    if (!/\.(jpe?g|png|webp|gif|avif|svg)$/i.test(req.path)) return next();
+    res.set({ "Content-Type": "image/svg+xml", "Cache-Control": "no-store", "X-Media-Missing": "1" });
+    return res.status(200).send(MISSING_IMAGE_SVG);
+});
+// Only these upload sub-folders are public. upload/payments (receipts) and anything else
+// (backups, ...) is never served statically; receipts go through GET /api/buying/payment-proof/:file.
+["packages", "menu"].forEach((dir) => app.use(`/${dir}`, express.static(path.join(__dirname, "upload", dir))));
+app.use(["/payments", "/upload/payments"], (req, res) => res.status(404).json({ success: false, message: "Not found" }));
 app.use(
     "/api-docs",
     swaggerUi.serve,

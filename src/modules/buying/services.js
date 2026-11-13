@@ -123,6 +123,21 @@ const resolvePackageDocument = async (item) => {
     return packageDoc;
 };
 
+// @desc Stream one payment receipt image (admin / cashier only; route is protected)
+// @route GET /api/buying/payment-proof/:file
+const getPaymentProof = (req, res) => {
+    const file = req.params.file;
+    if (!/^receipt-\d+-\d+\.jpeg$/.test(file)) {
+        return res.status(400).json({ success: false, message: "Invalid file name" });
+    }
+    const full = path.resolve("upload", "payments", file);
+    if (!fs.existsSync(full)) {
+        return res.status(404).json({ success: false, message: "Payment proof not found" });
+    }
+    res.set("Cache-Control", "private, no-store");
+    return res.sendFile(full);
+};
+
 // @desc Get official payment accounts (InstaPay, Vodafone Cash, Cash rules)
 // @route GET /api/buying/payment-accounts
 // @access Public
@@ -872,6 +887,7 @@ const deleteBuying = async (req, res, next) => {
 };
 
 module.exports = {
+    getPaymentProof,
     resizePaymentProofImage,
     getPaymentAccounts,
     createBuying,

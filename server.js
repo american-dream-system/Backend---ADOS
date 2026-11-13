@@ -2,6 +2,12 @@ const express = require("express");
 const http = require("http");
 const dotenv = require("dotenv");
 dotenv.config();
+try {
+    require("./src/utils/token").assertJwtSecrets();
+} catch (err) {
+    console.error(`❌ Refusing to start: ${err.message}`);
+    process.exit(1);
+}
 const PORT = process.env.PORT || 5000;
 const { initSocket } = require("./src/config/socket");
 const dbConnecting = require("./src/config/database");

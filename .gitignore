@@ -5,3 +5,6 @@ upload
 upload_backup_safety
 .gitignore  
 .env.local
+
+.env.*
+!.env.example

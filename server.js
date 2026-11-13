@@ -76,7 +76,15 @@ app.use(cors({
 
 // Short cache for public GETs; any write flushes it so admin edits show immediately
 app.use(flushOnWrite);
-app.use(["/api/media", "/api/packages", "/api/packges", "/api/tickets"], publicCache());
+app.use(
+    [
+        "/api/media", "/api/packages", "/api/packges", "/api/tickets",
+        "/api/menu", "/api/products", "/api/playzone-home", "/api/loyalty", "/api/points",
+        "/api/trips/offers", "/api/trips/packages", "/api/events/spaces", "/api/events/packages",
+        "/api/buying/payment-accounts", "/api/orders/payment-accounts",
+    ],
+    publicCache()
+);
 
 // Mount routes
 app.use("/api/auth", authRoutes);

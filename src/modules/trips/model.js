@@ -44,6 +44,9 @@ const tripBookingSchema = new mongoose.Schema({
         type: String,
         default: "FULL DREAM DAY"
     },
+    // Snapshot taken at booking time (both languages)
+    offerTitleAr: { type: String },
+    offerTitleEn: { type: String },
     pricePerStudent: {
         type: Number,
         required: true,

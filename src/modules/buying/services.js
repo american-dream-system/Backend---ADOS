@@ -8,6 +8,7 @@ const packageModel = require("../packges/model");
 const guestModel = require("../guests/model");
 const LoyaltySettings = require("../loyalty/model");
 const { verifyToken } = require("../../utils/token");
+const { itemTitlePair, zoneSnapshot } = require("../../utils/bilingualSnapshot");
 const { createAndEmitNotification } = require("../notifications/services");
 
 // @desc Middleware to resize and save uploaded payment receipt screenshot
@@ -180,6 +181,12 @@ const getPaymentAccounts = async (req, res) => {
 // @desc Buy tickets and/or packages
 // @route POST /api/buying
 // @access Public / Private
+// Both-language name and zone of an ordered ticket / package, copied into the order
+const snapshotOf = (item, doc) => {
+    const t = itemTitlePair(item, doc);
+    return { titleAr: t.ar, titleEn: t.en, ...zoneSnapshot(doc) };
+};
+
 const createBuying = async (req, res, next) => {
     try {
         let {
@@ -283,6 +290,7 @@ const createBuying = async (req, res, next) => {
                 validatedTickets.push({
                     ticket: ticketDoc._id,
                     title: item.title || ticketDoc.title || "تذكرة دخول ألعاب",
+                    ...snapshotOf(item, ticketDoc),
                     quantity: qty,
                     unitPrice,
                     totalPrice: lineTotal,
@@ -315,6 +323,7 @@ const createBuying = async (req, res, next) => {
                 validatedPackages.push({
                     package: packageDoc._id,
                     title: item.title || packageDoc.title || "باقة ألعاب",
+                    ...snapshotOf(item, packageDoc),
                     quantity: qty,
                     unitPrice,
                     totalPrice: lineTotal,

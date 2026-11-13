@@ -37,6 +37,9 @@ const eventBookingSchema = new mongoose.Schema({
         type: String,
         default: "Event Celebration"
     },
+    // Snapshot taken at booking time (both languages)
+    titleAr: { type: String },
+    titleEn: { type: String },
 
     // Venue Space ("Hole" / Hall Area)
     space: {
@@ -48,6 +51,8 @@ const eventBookingSchema = new mongoose.Schema({
         type: String,
         default: "Indoor Hall"
     },
+    spaceTitleAr: { type: String },
+    spaceTitleEn: { type: String },
 
     // Booking System Mode (By Package OR By Guests Count)
     bookingMode: {
@@ -68,13 +73,17 @@ const eventBookingSchema = new mongoose.Schema({
             type: String,
             default: "champion"
         },
-        packageName: { type: String, default: "Champion Quest" }
+        packageName: { type: String, default: "Champion Quest" },
+        packageNameAr: { type: String },
+        packageNameEn: { type: String }
     },
 
     // Add Items Feature (Cards created by Admin)
     selectedItems: [{
         id: { type: String },
         title: { type: String },
+        titleAr: { type: String },
+        titleEn: { type: String },
         price: { type: Number, default: 0 },
         quantity: { type: Number, default: 1 },
         image: { type: String, default: "" }

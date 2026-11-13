@@ -9,6 +9,12 @@ const buyingTicketItemSchema = new mongoose.Schema({
     title: {
         type: String
     },
+    // Snapshot taken at purchase time (both languages), so the record survives edits and deletes
+    titleAr: { type: String },
+    titleEn: { type: String },
+    zone: { type: String },
+    zoneAr: { type: String },
+    zoneEn: { type: String },
     quantity: {
         type: Number,
         default: 1,
@@ -37,6 +43,12 @@ const buyingPackageItemSchema = new mongoose.Schema({
     title: {
         type: String
     },
+    // Snapshot taken at purchase time (both languages), so the record survives edits and deletes
+    titleAr: { type: String },
+    titleEn: { type: String },
+    zone: { type: String },
+    zoneAr: { type: String },
+    zoneEn: { type: String },
     quantity: {
         type: Number,
         default: 1,

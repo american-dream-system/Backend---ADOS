@@ -3,6 +3,8 @@ const Guest = require("../guests/model");
 const { createAndEmitNotification } = require("../notifications/services");
 
 // Preset Venue Spaces matching Client
+const { pair } = require("../../utils/bilingualSnapshot");
+
 const EVENT_SPACES = [
     {
         id: "indoor",
@@ -261,6 +263,8 @@ const createEventBooking = async (req, res) => {
         let resolvedBasePrice = parseFloat(basePrice);
         let resolvedDeposit = parseFloat(depositRequired);
         let packageTitle = birthdayDetails.packageName;
+        // Both-language names kept with the booking (see utils/bilingualSnapshot.js)
+        let packagePair = pair(null, null, birthdayDetails.packageName);
 
         if (bookingMode === "per_guest") {
             const guestPrice = parseFloat(pricePerGuest) || 350;
@@ -270,6 +274,7 @@ const createEventBooking = async (req, res) => {
             packageTitle = `حجز بعدد الأفراد (${guestsNum} ضيف)`;
             birthdayDetails.packageId = "custom";
             birthdayDetails.packageName = packageTitle;
+            packagePair = { ar: packageTitle, en: `Per-guest booking (${guestsNum} guests)` };
         } else {
             // Package Mode
             if (eventType === "birthday") {
@@ -278,6 +283,7 @@ const createEventBooking = async (req, res) => {
                 if (isNaN(resolvedBasePrice)) resolvedBasePrice = pkg.basePrice;
                 if (isNaN(resolvedDeposit)) resolvedDeposit = pkg.deposit;
                 packageTitle = pkg.nameEn;
+                packagePair = { ar: pkg.nameAr, en: pkg.nameEn };
             } else {
                 // General hall or family
                 if (isNaN(resolvedBasePrice)) resolvedBasePrice = 4500;
@@ -288,6 +294,7 @@ const createEventBooking = async (req, res) => {
         // Space info
         const matchedSpace = EVENT_SPACES.find(s => s.id === space) || EVENT_SPACES[0];
         const spaceTitle = matchedSpace.titleEn;
+        const spacePair = { ar: matchedSpace.titleAr, en: matchedSpace.titleEn };
         const fee = venueFee || matchedSpace.fee || 0;
 
         // Sanitize and calculate add-on items total
@@ -295,6 +302,8 @@ const createEventBooking = async (req, res) => {
         const sanitizedItems = Array.isArray(selectedItems) ? selectedItems.map(it => ({
             id: String(it.id || ""),
             title: it.title || it.name || "إضافة خاصة",
+            titleAr: pair(it.titleAr, it.titleEn, it.title || it.name || "إضافة خاصة").ar,
+            titleEn: pair(it.titleAr, it.titleEn, it.title || it.name || "إضافة خاصة").en,
             price: Math.max(0, parseFloat(it.price || 0) || 0),
             quantity: Math.max(1, parseInt(it.quantity || 1, 10)),
             image: it.image || ""
@@ -342,8 +351,12 @@ const createEventBooking = async (req, res) => {
             contactEmail,
             eventType,
             title: title || `${packageTitle || spaceTitle} Reservation`,
+            titleAr: title ? pair(null, null, title).ar : `حجز ${packagePair.ar || spacePair.ar}`,
+            titleEn: title ? pair(null, null, title).en : `${packagePair.en || spacePair.en} Reservation`,
             space,
             spaceTitle,
+            spaceTitleAr: spacePair.ar,
+            spaceTitleEn: spacePair.en,
             bookingMode,
             pricePerGuest: bookingMode === "per_guest" ? (parseFloat(pricePerGuest) || 350) : 0,
             selectedItems: sanitizedItems,
@@ -352,7 +365,9 @@ const createEventBooking = async (req, res) => {
                 celebrantName: birthdayDetails.celebrantName || "",
                 celebrantAge: birthdayDetails.celebrantAge || "",
                 packageId: birthdayDetails.packageId || (bookingMode === "per_guest" ? "custom" : "champion"),
-                packageName: packageTitle || "Champion Quest"
+                packageName: packageTitle || "Champion Quest",
+                packageNameAr: packagePair.ar || packageTitle || "Champion Quest",
+                packageNameEn: packagePair.en || packageTitle || "Champion Quest"
             },
             totalGuests: guestsNum,
             kidsCount: calculatedKids,

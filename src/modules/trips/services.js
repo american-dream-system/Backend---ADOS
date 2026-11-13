@@ -3,6 +3,8 @@ const Guest = require("../guests/model");
 const { createAndEmitNotification } = require("../notifications/services");
 
 // Preset Trip Packages matching Client DesktopTripsPage
+const { pair } = require("../../utils/bilingualSnapshot");
+
 const TRIP_OFFERS = [
     {
         id: "full-dream",
@@ -169,6 +171,10 @@ const createTripQuote = async (req, res) => {
         // Find package price
         const matchedOffer = TRIP_OFFERS.find(o => o.id === offerId);
         const resolvedPrice = pricePerStudent || (matchedOffer ? matchedOffer.price : 380);
+        // Both-language offer name kept with the booking, so it survives later offer edits
+        const offerPair = matchedOffer && (!offerTitle || offerTitle === matchedOffer.titleEn)
+            ? { ar: matchedOffer.titleAr, en: matchedOffer.titleEn }
+            : pair(null, null, offerTitle || "FULL DREAM DAY");
         const resolvedTitle = offerTitle || (matchedOffer ? matchedOffer.titleEn : "FULL DREAM DAY");
 
         // Calculate supervisors
@@ -215,6 +221,8 @@ const createTripQuote = async (req, res) => {
             phone,
             offerId,
             offerTitle: resolvedTitle,
+            offerTitleAr: offerPair.ar,
+            offerTitleEn: offerPair.en,
             pricePerStudent: resolvedPrice,
             studentsCount: studentsNum,
             supervisorsCount: finalSupervisors,

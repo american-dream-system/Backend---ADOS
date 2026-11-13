@@ -13,6 +13,7 @@ const menuOrderModel = require("../menu/orderModel");
 // @desc create guest
 // @route POST /api/guests
 // @access Private
+const { titlePair } = require("../../utils/bilingualSnapshot");
 const createGuest = async (req, res, next) => {
     try {
         const guest = await guestModel.create(req.body);
@@ -232,12 +233,26 @@ const getGuestFullHistory = async (req, res, next) => {
         // Build normalized chronological ledger / timeline
         const timeline = [];
 
+        // Name of an ordered item in one language: the snapshot saved with the order first, then the live
+        // ticket / package, then the stored title (older orders)
+        const itemName = (it, docKey, isAr, fallback) => {
+            const snap = isAr ? it.titleAr : it.titleEn;
+            if (snap) return snap;
+            const live = it[docKey] && typeof it[docKey] === 'object' ? titlePair(it[docKey]) : null;
+            const liveName = live && (isAr ? live.ar : live.en);
+            return liveName || it.title || fallback;
+        };
+
         // 1. Passes & Packages purchases
         purchases.forEach(p => {
             const ticketNames = (p.tickets || []).map(t => `${t.title || t.ticket?.title || 'تذكرة'} (x${t.quantity || 1})`).join('، ');
             const packageNames = (p.packages || []).map(pkg => `${pkg.title || pkg.package?.title || 'باقة'} (x${pkg.quantity || 1})`).join('، ');
             const itemsSummary = [ticketNames, packageNames].filter(Boolean).join(' + ') || 'شراء تذاكر / باقات';
 
+            const summaryIn = (isAr) => {
+                const fmt = (list, key, fb) => (list || []).map(i => `${itemName(i, key, isAr, fb)} (x${i.quantity || 1})`).join(isAr ? '، ' : ', ');
+                return [fmt(p.tickets, 'ticket', isAr ? 'تذكرة' : 'Ticket'), fmt(p.packages, 'package', isAr ? 'باقة' : 'Package')].filter(Boolean).join(' + ') || (isAr ? 'شراء تذاكر / باقات' : 'Tickets / packages purchase');
+            };
             timeline.push({
                 id: p._id,
                 category: "passes",
@@ -251,7 +266,10 @@ const getGuestFullHistory = async (req, res, next) => {
                 paymentMethod: p.paymentMethod || "cash",
                 paymentStatus: p.paymentStatus || "pending",
                 title: itemsSummary,
+                titleAr: summaryIn(true),
+                titleEn: summaryIn(false),
                 description: `طلب تذاكر وباقات برقم ${p.orderCode} بمبلغ ${p.totalPrice} ج.م`,
+                descriptionEn: `Tickets & packages order ${p.orderCode} for ${p.totalPrice} EGP`,
                 raw: p
             });
         });
@@ -272,7 +290,10 @@ const getGuestFullHistory = async (req, res, next) => {
                 paymentMethod: "N/A",
                 paymentStatus: t.status === "confirmed" ? "paid" : "pending",
                 title: `${t.orgName || 'مدرسة/جهة'} — ${t.offerTitle || 'رحلة مدرسية'}`,
+                titleAr: `${t.orgName || 'مدرسة/جهة'} — ${t.offerTitleAr || t.offerTitle || 'رحلة مدرسية'}`,
+                titleEn: `${t.orgName || 'School / group'} — ${t.offerTitleEn || t.offerTitle || 'School trip'}`,
                 description: `${t.studentsCount || 0} طالب + ${t.supervisorsCount || 0} مشرفين | تاريخ الرحلة: ${t.tripDate ? new Date(t.tripDate).toLocaleDateString('ar-EG') : 'غير محدد'}`,
+                descriptionEn: `${t.studentsCount || 0} students + ${t.supervisorsCount || 0} supervisors | Trip date: ${t.tripDate ? new Date(t.tripDate).toLocaleDateString('en-US') : 'not set'}`,
                 raw: t
             });
         });
@@ -294,7 +315,10 @@ const getGuestFullHistory = async (req, res, next) => {
                 paymentMethod: e.depositProof ? "receipt_uploaded" : "N/A",
                 paymentStatus: e.paymentStatus || "unpaid",
                 title: `${e.spaceTitle || e.space || 'قاعة احتفالات'}${celebrantText}`,
+                titleAr: `${e.spaceTitleAr || e.spaceTitle || e.space || 'قاعة احتفالات'}${celebrantText}`,
+                titleEn: `${e.spaceTitleEn || e.spaceTitle || e.space || 'Celebration hall'}${e.birthdayDetails?.celebrantName ? ` (birthday: ${e.birthdayDetails.celebrantName})` : ''}`,
                 description: `${e.totalGuests || 0} فرد | الفترة: ${e.session || 'مسائية'} (${e.sessionTime || ''})`,
+                descriptionEn: `${e.totalGuests || 0} guests | Session: ${e.session || 'evening'} (${e.sessionTime || ''})`,
                 raw: e
             });
         });
@@ -315,7 +339,10 @@ const getGuestFullHistory = async (req, res, next) => {
                 paymentMethod: "on_arrival",
                 paymentStatus: "N/A",
                 title: `طاولة في منطقة: ${tbl.area || 'المطعم'}`,
+                titleAr: `طاولة في منطقة: ${tbl.area || 'المطعم'}`,
+                titleEn: `Table in area: ${tbl.area || 'Restaurant'}`,
                 description: `عدد الأفراد: ${tbl.numberOfPerson || 1} فرد | الساعة: ${tbl.time || 'غير محدد'}`,
+                descriptionEn: `Guests: ${tbl.numberOfPerson || 1} | Time: ${tbl.time || 'not set'}`,
                 raw: tbl
             });
         });
@@ -323,6 +350,7 @@ const getGuestFullHistory = async (req, res, next) => {
         // 5. Restaurant Orders & Food Delivery
         menuOrders.forEach(m => {
             const itemsSummary = (m.items || []).map(i => `${i.nameAr || i.nameEn || 'وجبة'} (x${i.quantity || 1})`).join('، ') || 'طلب وجبات مطعم';
+            const itemsSummaryEn = (m.items || []).map(i => `${i.nameEn || i.nameAr || 'Meal'} (x${i.quantity || 1})`).join(', ') || 'Restaurant order';
             timeline.push({
                 id: m._id,
                 category: "restaurant",
@@ -336,7 +364,10 @@ const getGuestFullHistory = async (req, res, next) => {
                 paymentMethod: m.paymentMethod || "cod",
                 paymentStatus: m.paymentStatus || "pending",
                 title: `${m.orderType === 'delivery' ? 'توصيل للمنزل' : 'وجبات مطعم'}: ${itemsSummary.slice(0, 50)}${itemsSummary.length > 50 ? '...' : ''}`,
+                titleAr: `${m.orderType === 'delivery' ? 'توصيل للمنزل' : 'وجبات مطعم'}: ${itemsSummary.slice(0, 50)}${itemsSummary.length > 50 ? '...' : ''}`,
+                titleEn: `${m.orderType === 'delivery' ? 'Home delivery' : 'Restaurant meals'}: ${itemsSummaryEn.slice(0, 50)}${itemsSummaryEn.length > 50 ? '...' : ''}`,
                 description: `العنوان: ${m.deliveryAddress || 'داخل المطعم'} | الإجمالي: ${m.totalAmount} ج.م`,
+                descriptionEn: `Address: ${m.deliveryAddress || 'In the restaurant'} | Total: ${m.totalAmount} EGP`,
                 raw: m
             });
         });

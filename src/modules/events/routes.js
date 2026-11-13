@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { adminOnly } = require("../../middlewares/authMiddleware");
 
 const {
     getEventSpaces,
@@ -49,12 +50,12 @@ router.get("/:id", getEventByIdValidator, getEventById);
 router.post("/:id/deposit-proof", getEventByIdValidator, uploadDepositProof);
 
 // Update booking details
-router.put("/:id", getEventByIdValidator, updateEventBooking);
+router.put("/:id", adminOnly, getEventByIdValidator, updateEventBooking);
 
 // Update status
-router.patch("/:id/status", updateEventStatusValidator, updateEventStatus);
+router.patch("/:id/status", adminOnly, updateEventStatusValidator, updateEventStatus);
 
 // Delete event booking
-router.delete("/:id", getEventByIdValidator, deleteEventBooking);
+router.delete("/:id", adminOnly, getEventByIdValidator, deleteEventBooking);
 
 module.exports = router;

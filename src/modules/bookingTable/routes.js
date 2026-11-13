@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { adminOnly } = require("../../middlewares/authMiddleware");
 const {
     createBookingTable,
     getAllBookingTables,
@@ -41,12 +42,12 @@ router.get("/guest/:guestId", getBookingsByGuestValidator, getBookingsByGuest);
 router.get("/:id", getBookingTableValidator, getBookingTableById);
 
 // Update booking details
-router.put("/:id", updateBookingTableValidator, updateBookingTable);
+router.put("/:id", adminOnly, updateBookingTableValidator, updateBookingTable);
 
 // Update booking status (pending, confirmed, cancelled)
-router.patch("/:id/status", updateBookingStatusValidator, updateBookingStatus);
+router.patch("/:id/status", adminOnly, updateBookingStatusValidator, updateBookingStatus);
 
 // Delete / Cancel booking
-router.delete("/:id", deleteBookingTableValidator, deleteBookingTable);
+router.delete("/:id", adminOnly, deleteBookingTableValidator, deleteBookingTable);
 
 module.exports = router;

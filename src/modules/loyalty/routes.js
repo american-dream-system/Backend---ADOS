@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { adminOnly } = require("../../middlewares/authMiddleware");
 
 const {
     getLoyaltySettings,
@@ -39,8 +40,8 @@ router.post("/calculate", calculatePoints);
 // ==========================================
 // ADMIN / DASHBOARD LOYALTY CONFIGURATION
 // ==========================================
-router.put("/settings", protectAdminOrDashboard, updateLoyaltySettings);
-router.patch("/settings", protectAdminOrDashboard, updateLoyaltySettings);
-router.post("/adjust-points", protectAdminOrDashboard, adjustGuestPoints);
+router.put("/settings", adminOnly, updateLoyaltySettings);
+router.patch("/settings", adminOnly, updateLoyaltySettings);
+router.post("/adjust-points", adminOnly, adjustGuestPoints);
 
 module.exports = router;

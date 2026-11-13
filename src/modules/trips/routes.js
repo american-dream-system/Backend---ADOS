@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { adminOnly } = require("../../middlewares/authMiddleware");
 
 const {
     getTripOffers,
@@ -44,12 +45,12 @@ router.get("/", getAllTrips);
 router.get("/:id", getTripByIdValidator, getTripById);
 
 // Update trip
-router.put("/:id", getTripByIdValidator, updateTripBooking);
+router.put("/:id", adminOnly, getTripByIdValidator, updateTripBooking);
 
 // Update status
-router.patch("/:id/status", updateTripStatusValidator, updateTripStatus);
+router.patch("/:id/status", adminOnly, updateTripStatusValidator, updateTripStatus);
 
 // Delete trip
-router.delete("/:id", getTripByIdValidator, deleteTrip);
+router.delete("/:id", adminOnly, getTripByIdValidator, deleteTrip);
 
 module.exports = router;

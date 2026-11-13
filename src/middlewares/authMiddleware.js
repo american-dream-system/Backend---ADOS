@@ -66,4 +66,7 @@ const allowedTo = (...roles) => {
     };
 };
 
-module.exports = { protectGuest, allowedTo };
+// Admin-only guard: 401 without a valid token, 403 for a non-admin account
+const adminOnly = [protectGuest, allowedTo("admin")];
+
+module.exports = { protectGuest, allowedTo, adminOnly };

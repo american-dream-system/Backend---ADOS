@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { adminOnly } = require("../../middlewares/authMiddleware");
 const { uploadSingleImage } = require("../../middlewares/uploadImages");
 const {
     resizeMenuItemImage,
@@ -27,7 +28,7 @@ const {
 const { resizePaymentProofImage } = require("../buying/services");
 
 // @route POST /api/menu/seed - Seed items from UI
-router.post("/seed", seedMenu);
+router.post("/seed", adminOnly, seedMenu);
 
 // @route GET /api/menu/categories - Categories breakdown
 router.get("/categories", getCategories);
@@ -42,17 +43,17 @@ router.post(
     placeOrder
 );
 router.get("/orders/:id", getOrderById);
-router.put("/orders/:id/status", updateOrderStatus);
+router.put("/orders/:id/status", adminOnly, updateOrderStatus);
 
 // @route GET & POST for menu items
 router.route("/")
     .get(getAllMenuItems)
-    .post(uploadSingleImage("image"), resizeMenuItemImage, createMenuItemValidator, createMenuItem);
+    .post(adminOnly, uploadSingleImage("image"), resizeMenuItemImage, createMenuItemValidator, createMenuItem);
 
 // @route GET, PUT, DELETE for specific menu item
 router.route("/:id")
     .get(getMenuItemValidator, getMenuItemById)
-    .put(uploadSingleImage("image"), resizeMenuItemImage, updateMenuItemValidator, updateMenuItem)
-    .delete(deleteMenuItemValidator, deleteMenuItem);
+    .put(adminOnly, uploadSingleImage("image"), resizeMenuItemImage, updateMenuItemValidator, updateMenuItem)
+    .delete(adminOnly, deleteMenuItemValidator, deleteMenuItem);
 
 module.exports = router;

@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { adminOnly } = require("../../middlewares/authMiddleware");
 
 const {
     createGuest,
@@ -61,12 +62,12 @@ router.get("/:id/transactions", protectAdminOrDashboard, getGuestFullHistory);
 // ==========================================
 
 router.route("/")
-    .post(protectAdminOrDashboard, createGuestValidator, createGuest)
+    .post(adminOnly, createGuestValidator, createGuest)
     .get(protectAdminOrDashboard, getAllGuests);
 
 router.route("/:id")
     .get(protectAdminOrDashboard, getGuestValidator, getGuestById)
-    .put(protectAdminOrDashboard, updateGuestValidator, updateGuest)
-    .delete(protectAdminOrDashboard, deleteGuestValidator, deleteGuest);
+    .put(adminOnly, updateGuestValidator, updateGuest)
+    .delete(adminOnly, deleteGuestValidator, deleteGuest);
 
 module.exports = router;

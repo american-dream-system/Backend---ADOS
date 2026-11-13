@@ -30,7 +30,7 @@ const {
     deleteBuyingValidator
 } = require("./validator");
 
-const { protectGuest, allowedTo } = require("../../middlewares/authMiddleware");
+const { protectGuest, allowedTo, adminOnly } = require("../../middlewares/authMiddleware");
 
 // 1. Get official payment accounts (InstaPay, Vodafone Cash, Cash rules)
 router.get("/payment-accounts", getPaymentAccounts);
@@ -92,13 +92,13 @@ router.get("/guest/:guestId", getBuyingsByGuestValidator, getBuyingsByGuest);
 router.get("/:id", getBuyingValidator, getBuyingById);
 
 // 11. Redeem / scan pass at turnstile gate by code or ID
-router.patch("/code/:code/redeem", redeemBuyingValidator, redeemBuying);
-router.patch("/:id/redeem", redeemBuyingValidator, redeemBuying);
+router.patch("/code/:code/redeem", adminOnly, redeemBuyingValidator, redeemBuying);
+router.patch("/:id/redeem", adminOnly, redeemBuyingValidator, redeemBuying);
 
 // 12. Update status / payment status
-router.patch("/:id/status", updateBuyingStatusValidator, updateBuyingStatus);
+router.patch("/:id/status", adminOnly, updateBuyingStatusValidator, updateBuyingStatus);
 
 // 13. Delete / cancel purchase
-router.delete("/:id", deleteBuyingValidator, deleteBuying);
+router.delete("/:id", adminOnly, deleteBuyingValidator, deleteBuying);
 
 module.exports = router;

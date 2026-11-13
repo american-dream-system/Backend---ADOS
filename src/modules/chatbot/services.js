@@ -363,6 +363,19 @@ const getSessionHistory = async (req, res) => {
             });
         }
 
+        // A session owned by a registered guest is readable only by that guest or an admin.
+        // Anonymous sessions (no owner) stay readable by whoever holds the unguessable UUID.
+        if (session.guest) {
+            const isOwner = req.guest && String(req.guest._id) === String(session.guest);
+            const isAdmin = req.guest && req.guest.role === "admin";
+            if (!isOwner && !isAdmin) {
+                return res.status(404).json({
+                    success: false,
+                    message: `جلسة المحادثة '${sessionId}' غير موجودة`
+                });
+            }
+        }
+
         return res.status(200).json({
             success: true,
             session: {

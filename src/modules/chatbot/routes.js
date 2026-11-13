@@ -59,7 +59,7 @@ router.post("/", optionalGuestAuth, sendMessageValidator, sendMessage);
 // Session management
 router.post("/session", optionalGuestAuth, createSessionValidator, createSession);
 router.get("/sessions", protectGuest, listSessions);
-router.get("/session/:sessionId", sessionIdParamValidator, getSessionHistory);
+router.get("/session/:sessionId", optionalGuestAuth, sessionIdParamValidator, getSessionHistory);
 router.delete("/session/:sessionId", sessionIdParamValidator, clearSession);
 
 module.exports = router;

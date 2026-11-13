@@ -1,4 +1,19 @@
 const { Server } = require("socket.io");
+const { verifyToken } = require("../utils/token");
+const guestModel = require("../modules/guests/model");
+
+// Resolve a JWT to an admin account; returns false for anything else
+const isVerifiedAdmin = async (token) => {
+    if (!token || typeof token !== "string") return false;
+    try {
+        const decoded = verifyToken(token.replace(/^Bearer\s+/i, ""));
+        if (!decoded || !decoded.id) return false;
+        const user = await guestModel.findById(decoded.id).select("role");
+        return !!user && user.role === "admin";
+    } catch {
+        return false;
+    }
+};
 
 let io = null;
 
@@ -21,7 +36,14 @@ const initSocket = (httpServer) => {
         console.log(`[Socket.io] Client connected: ${socket.id}`);
 
         // Join the admin dashboard room for real-time notifications
-        socket.on("join_admin_room", () => {
+        // Only a verified admin JWT (handshake auth, or { token } in the event payload) may join
+        socket.on("join_admin_room", async (payload) => {
+            const token = (payload && payload.token) || (socket.handshake.auth && socket.handshake.auth.token);
+            if (!(await isVerifiedAdmin(token))) {
+                console.warn(`[Socket.io] Socket ${socket.id} denied admin_room (not an admin)`);
+                socket.emit("join_admin_room_denied", { success: false, message: "Admin authentication required" });
+                return;
+            }
             socket.join("admin_room");
             console.log(`[Socket.io] Socket ${socket.id} joined admin_room`);
             socket.emit("joined_admin_room_ack", { success: true, timestamp: new Date() });

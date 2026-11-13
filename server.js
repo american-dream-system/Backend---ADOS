@@ -33,14 +33,18 @@ const ApiError = require("./src/utils/ApiError");
 const GlobalError = require("./src/middlewares/error");
 const ngrok = require("@ngrok/ngrok");
 const cors = require("cors");
+const compression = require("compression");
+const { publicCache, flushOnWrite } = require("./src/middlewares/responseCache");
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Middlewares
+app.use(compression()); // gzip/deflate for JSON and text responses
 app.use(morgan("dev")); //logging
-app.use("/media", express.static(path.join(__dirname, "upload/media")));
+// Uploaded media names contain a timestamp + random id, so a file never changes: cache hard.
+app.use("/media", express.static(path.join(__dirname, "upload/media"), { maxAge: "30d", immutable: true, etag: true }));
 app.use(express.static(path.join(__dirname, "upload"))); // to serve static files
 app.use(
     "/api-docs",
@@ -54,6 +58,10 @@ app.use(cors({
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true
 }));
+
+// Short cache for public GETs; any write flushes it so admin edits show immediately
+app.use(flushOnWrite);
+app.use(["/api/media", "/api/packages", "/api/packges", "/api/tickets"], publicCache());
 
 // Mount routes
 app.use("/api/auth", authRoutes);

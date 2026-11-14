@@ -10,6 +10,7 @@ const getDoc = async () => {
     // Keep the fixed-size arrays at full length
     while (doc.zoneImages.length < ZONE_KEYS.length) doc.zoneImages.push("");
     while (doc.activityImages.length < ACTIVITY_SLOTS) doc.activityImages.push("");
+    while (doc.zoneDescriptions.length < ZONE_KEYS.length) doc.zoneDescriptions.push({ en: "", ar: "" });
     return doc;
 };
 
@@ -26,9 +27,15 @@ const serialize = (doc) => {
     ZONE_KEYS.forEach((k, i) => {
         zones[k] = imageUrl(doc.zoneImages[i]);
     });
+    const zoneDescriptions = {};
+    ZONE_KEYS.forEach((k, i) => {
+        const d = doc.zoneDescriptions[i];
+        zoneDescriptions[k] = { en: (d && d.en) || "", ar: (d && d.ar) || "" };
+    });
     return {
         hero: { image: imageUrl(doc.heroImage) },
         zones,
+        zoneDescriptions,
         activities: doc.activityImages.slice(0, ACTIVITY_SLOTS).map(imageUrl),
         packages: doc.packages.map((p) => ({
             _id: p._id,
@@ -103,6 +110,30 @@ const setZone = slotUpdater((doc, req, value) => {
     doc.zoneImages.set(idx, value);
 });
 
+// @desc Set the description shown on one zone card (both empty = back to the default text)
+// @route PUT /api/playzone-home/zones/:key/description   body: { en, ar }
+const MAX_DESCRIPTION = 160;
+const setZoneDescription = async (req, res, next) => {
+    try {
+        const idx = ZONE_KEYS.indexOf(req.params.key);
+        if (idx < 0) return res.status(400).json({ success: false, message: "Invalid slot" });
+        const body = req.body || {};
+        const en = String(body.en || "").trim();
+        const ar = String(body.ar || "").trim();
+        if (en.length > MAX_DESCRIPTION || ar.length > MAX_DESCRIPTION) {
+            return res
+                .status(400)
+                .json({ success: false, message: `Description must be at most ${MAX_DESCRIPTION} characters` });
+        }
+        const doc = await getDoc();
+        doc.zoneDescriptions.set(idx, { en, ar });
+        await doc.save();
+        send(res, doc);
+    } catch (error) {
+        next(error);
+    }
+};
+
 // @route PUT|DELETE /api/playzone-home/activities/:index   (index 0-3)
 const setActivity = slotUpdater((doc, req, value) => {
     const idx = Number(req.params.index);
@@ -173,4 +204,4 @@ const deletePackage = async (req, res, next) => {
     }
 };
 
-module.exports = { getPlayzoneHome, setHero, setZone, setActivity, addPackage, updatePackage, deletePackage };
+module.exports = { getPlayzoneHome, setHero, setZone, setZoneDescription, setActivity, addPackage, updatePackage, deletePackage };

@@ -27,6 +27,8 @@ const playzoneHomeSchema = new mongoose.Schema(
         heroImage: { type: String, default: "" },
         // Fixed order: kids-area, fun-park, challenge, adventure
         zoneImages: { type: [String], default: ["", "", "", ""] },
+        // Fixed order like zoneImages: editable card description per zone (empty = static default)
+        zoneDescriptions: { type: [bulletSchema], default: [] },
         // Four fixed slots
         activityImages: { type: [String], default: ["", "", "", ""] },
         packages: { type: [packageSchema], default: [] },

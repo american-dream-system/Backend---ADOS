@@ -6,6 +6,7 @@ const {
     getPlayzoneHome,
     setHero,
     setZone,
+    setZoneDescription,
     setActivity,
     addPackage,
     updatePackage,
@@ -22,6 +23,7 @@ router.get("/", getPlayzoneHome);
 // Admin: single image slots (DELETE resets the slot to the static default)
 router.put("/hero", adminOnly, image, setHero);
 router.delete("/hero", adminOnly, setHero);
+router.put("/zones/:key/description", adminOnly, setZoneDescription);
 router.put("/zones/:key", adminOnly, image, setZone);
 router.delete("/zones/:key", adminOnly, setZone);
 router.put("/activities/:index", adminOnly, image, setActivity);

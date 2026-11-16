@@ -5,7 +5,6 @@ const { normalizeImagePath } = require("../../utils/mediaPath");
 
 const SLOTS = ["hero", "book-table", "delivery", "menu"];
 const MAX_GALLERY = 24;
-const MAX_TITLE = 80;
 const MEDIA_DIR = path.resolve("upload/media");
 
 const getDoc = async () => {
@@ -44,10 +43,8 @@ const serialize = (doc) => {
     SLOTS.forEach((s) => {
         images[s] = imageUrl(doc.images && doc.images[s]);
     });
-    const t = doc.galleryTitle || {};
     return {
         images,
-        galleryTitle: { en: t.en || "", ar: t.ar || "" },
         gallery: (doc.gallery || []).map((g) => ({ id: String(g._id), image: imageUrl(g.image) })),
     };
 };
@@ -180,30 +177,6 @@ const reorderGallery = async (req, res, next) => {
     }
 };
 
-// @route PUT /api/restaurant-home/gallery-title   (admin) body: { en, ar }; both empty = back to the default title
-const setGalleryTitle = async (req, res, next) => {
-    try {
-        const body = req.body || {};
-        const out = {};
-        for (const lang of ["en", "ar"]) {
-            const v = body[lang];
-            if (v !== undefined && typeof v !== "string") {
-                return res.status(400).json({ success: false, message: "Invalid title" });
-            }
-            out[lang] = String(v || "").trim();
-            if (out[lang].length > MAX_TITLE) {
-                return res.status(400).json({ success: false, message: `Title must be at most ${MAX_TITLE} characters` });
-            }
-        }
-        const doc = await getDoc();
-        doc.galleryTitle = out;
-        await doc.save();
-        send(res, doc);
-    } catch (error) {
-        next(error);
-    }
-};
-
 module.exports = {
     getRestaurantHome,
     setImage,
@@ -211,5 +184,4 @@ module.exports = {
     replaceGalleryImage,
     removeGalleryImage,
     reorderGallery,
-    setGalleryTitle,
 };

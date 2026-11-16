@@ -9,7 +9,6 @@ const {
     replaceGalleryImage,
     removeGalleryImage,
     reorderGallery,
-    setGalleryTitle,
 } = require("./services");
 
 const adminOnly = [protectGuest, allowedTo("admin")];
@@ -29,7 +28,6 @@ router.put("/images/:slot", adminOnly, uploadSingleImage("image"), nameFile, ima
 router.delete("/images/:slot", adminOnly, setImage);
 
 // Admin only: gallery section (fixed paths first, then the per-image routes)
-router.put("/gallery-title", adminOnly, setGalleryTitle);
 router.put("/gallery/order", adminOnly, reorderGallery);
 router.post("/gallery", adminOnly, arrayOfImages("images"), nameFile, imageProcessing, addGalleryImages);
 router.put("/gallery/:id", adminOnly, uploadSingleImage("image"), nameFile, imageProcessing, replaceGalleryImage);

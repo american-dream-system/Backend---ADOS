@@ -1,6 +1,12 @@
 const EventBooking = require("./model");
 const Guest = require("../guests/model");
 const { createAndEmitNotification } = require("../notifications/services");
+const { OrderError, wholeQty, round2, sendOrderError, MAX_ADDON_QTY, MAX_GUESTS } = require("../../utils/orderPricing");
+const { getEventsCatalog } = require("../../utils/catalogs");
+
+const VAT_RATE = 0.14;
+const DEPOSIT_RATE = 0.3;
+const OCCASIONS = { birthday: "birthday", family: "family", general: "general", general_hall: "general", corporate: "general", other: "general", dating: "dating" };
 
 // Preset Venue Spaces matching Client
 const { pair } = require("../../utils/bilingualSnapshot");
@@ -245,8 +251,8 @@ const createEventBooking = async (req, res) => {
             });
         }
 
-        // Guests breakdown
-        let guestsNum = Math.max(1, parseInt(totalGuests, 10) || 30);
+        // Guests: a whole number, 1..MAX_GUESTS
+        const guestsNum = wholeQty(totalGuests, { max: MAX_GUESTS, label: "عدد الضيوف", fallback: 30 });
 
         // Outdoor Birthday Limit: Strictly max 20 guests
         if (eventType === "birthday" && space === "outdoor" && guestsNum > 20) {
@@ -259,66 +265,94 @@ const createEventBooking = async (req, res) => {
         const calculatedKids = kidsCount !== undefined ? parseInt(kidsCount, 10) : Math.round(guestsNum * (2 / 3));
         const calculatedAdults = adultsCount !== undefined ? parseInt(adultsCount, 10) : guestsNum - calculatedKids;
 
-        // Resolve base price by booking mode (Package vs Per-Guest)
-        let resolvedBasePrice = parseFloat(basePrice);
-        let resolvedDeposit = parseFloat(depositRequired);
+        // Every price comes from the server catalog (admin-saved packages, rates and add-on cards, else the
+        // built-in defaults). basePrice, pricePerGuest, venueFee, depositRequired and item prices sent by the
+        // client are ignored.
+        const occasion = OCCASIONS[eventType];
+        if (!occasion) {
+            throw new OrderError(`نوع المناسبة غير صالح: ${eventType}`, 400);
+        }
+        const catalog = await getEventsCatalog();
+        if (!["package", "per_guest"].includes(bookingMode)) {
+            throw new OrderError("نظام الحجز غير صالح (package أو per_guest)", 400);
+        }
+
+        let resolvedBasePrice;
+        let resolvedDeposit;
+        let ratePerGuest = 0;
         let packageTitle = birthdayDetails.packageName;
         // Both-language names kept with the booking (see utils/bilingualSnapshot.js)
         let packagePair = pair(null, null, birthdayDetails.packageName);
 
         if (bookingMode === "per_guest") {
-            const guestPrice = parseFloat(pricePerGuest) || 350;
-            if (isNaN(resolvedBasePrice) || resolvedBasePrice <= 0) {
-                resolvedBasePrice = guestsNum * guestPrice;
+            ratePerGuest = Number(catalog.pricePerGuestByOccasion[occasion]);
+            if (!Number.isFinite(ratePerGuest) || ratePerGuest <= 0) {
+                throw new OrderError("سعر الفرد غير متاح لهذه المناسبة حالياً", 409);
             }
+            resolvedBasePrice = round2(guestsNum * ratePerGuest);
             packageTitle = `حجز بعدد الأفراد (${guestsNum} ضيف)`;
             birthdayDetails.packageId = "custom";
             birthdayDetails.packageName = packageTitle;
             packagePair = { ar: packageTitle, en: `Per-guest booking (${guestsNum} guests)` };
         } else {
-            // Package Mode
-            if (eventType === "birthday") {
-                const pkgId = birthdayDetails.packageId || "champion";
-                const pkg = BIRTHDAY_PACKAGES.find(p => p.id === pkgId) || BIRTHDAY_PACKAGES[1];
-                if (isNaN(resolvedBasePrice)) resolvedBasePrice = pkg.basePrice;
-                if (isNaN(resolvedDeposit)) resolvedDeposit = pkg.deposit;
-                packageTitle = pkg.nameEn;
-                packagePair = { ar: pkg.nameAr, en: pkg.nameEn };
+            const list = (catalog.packagesByOccasion[occasion] || []).filter((p) => p && Number(p.basePrice) >= 0);
+            const wanted = birthdayDetails.packageId;
+            let pkg;
+            if (wanted && wanted !== "custom") {
+                pkg = list.find((p) => String(p.id) === String(wanted));
+                if (!pkg) throw new OrderError(`الباقة المطلوبة غير موجودة: ${wanted}`, 404);
             } else {
-                // General hall or family
-                if (isNaN(resolvedBasePrice)) resolvedBasePrice = 4500;
-                if (isNaN(resolvedDeposit)) resolvedDeposit = Math.round(resolvedBasePrice * 0.3);
+                pkg = list.find((p) => p.isPopular) || list[0];
+                if (!pkg) throw new OrderError("لا توجد باقات متاحة لهذه المناسبة حالياً", 409);
             }
+            resolvedBasePrice = round2(Number(pkg.basePrice));
+            resolvedDeposit = Number.isFinite(Number(pkg.deposit)) && Number(pkg.deposit) > 0 ? Number(pkg.deposit) : undefined;
+            packageTitle = pkg.nameEn || pkg.nameAr || pkg.title;
+            packagePair = { ar: pkg.nameAr || pkg.nameEn || packageTitle, en: pkg.nameEn || pkg.nameAr || packageTitle };
+            birthdayDetails.packageId = String(pkg.id);
         }
 
-        // Space info
-        const matchedSpace = EVENT_SPACES.find(s => s.id === space) || EVENT_SPACES[0];
+        // Space info (the hall fee is fixed on the server)
+        const matchedSpace = EVENT_SPACES.find(s => s.id === space);
+        if (!matchedSpace) throw new OrderError(`القاعة غير موجودة: ${space}`, 404);
         const spaceTitle = matchedSpace.titleEn;
         const spacePair = { ar: matchedSpace.titleAr, en: matchedSpace.titleEn };
-        const fee = venueFee || matchedSpace.fee || 0;
+        const fee = matchedSpace.fee || 0;
 
-        // Sanitize and calculate add-on items total
-        let itemsSum = 0;
-        const sanitizedItems = Array.isArray(selectedItems) ? selectedItems.map(it => ({
-            id: String(it.id || ""),
-            title: it.title || it.name || "إضافة خاصة",
-            titleAr: pair(it.titleAr, it.titleEn, it.title || it.name || "إضافة خاصة").ar,
-            titleEn: pair(it.titleAr, it.titleEn, it.title || it.name || "إضافة خاصة").en,
-            price: Math.max(0, parseFloat(it.price || 0) || 0),
-            quantity: Math.max(1, parseInt(it.quantity || 1, 10)),
-            image: it.image || ""
-        })) : [];
-        itemsSum = sanitizedItems.reduce((acc, it) => acc + (it.price * it.quantity), 0);
+        // Add-ons: priced from the catalog by id; quantity a whole number 1..MAX_ADDON_QTY
+        if (selectedItems && !Array.isArray(selectedItems)) {
+            throw new OrderError("قائمة الإضافات غير صالحة", 400);
+        }
+        const sanitizedItems = [];
+        for (const it of (selectedItems || [])) {
+            const id = String((it && (it.id || it._id)) || "");
+            const card = catalog.addItems.find((a) => a && String(a.id) === id);
+            if (!card) throw new OrderError(`الإضافة غير موجودة أو غير متاحة: ${id || "؟"}`, 404);
+            const price = round2(Number(card.price));
+            if (!Number.isFinite(price) || price < 0) throw new OrderError("سعر الإضافة غير متاح حالياً", 409);
+            const pr = pair(card.titleAr, card.titleEn, card.title);
+            sanitizedItems.push({
+                id,
+                title: card.titleEn || card.titleAr || card.title || "إضافة خاصة",
+                titleAr: pr.ar,
+                titleEn: pr.en,
+                price,
+                quantity: wholeQty(it.quantity, { max: MAX_ADDON_QTY, label: "كمية الإضافة", fallback: 1 }),
+                image: card.image || ""
+            });
+        }
+        const itemsSum = round2(sanitizedItems.reduce((acc, it) => acc + (it.price * it.quantity), 0));
 
         // Subtotal, 14% VAT, and Grand Total
-        const subtotal = resolvedBasePrice + itemsSum;
-        const vatRate = 0.14;
+        const subtotal = round2(resolvedBasePrice + itemsSum);
+        const vatRate = VAT_RATE;
         const vatAmount = Math.round(subtotal * vatRate);
-        const totalAmount = subtotal + fee + vatAmount;
+        const totalAmount = round2(subtotal + fee + vatAmount);
 
-        if (isNaN(resolvedDeposit) || resolvedDeposit <= 0) {
-            resolvedDeposit = Math.round(totalAmount * 0.3);
-        }
+        // Deposit: the package deposit (plus 30% of add-ons), else 30% of the total
+        resolvedDeposit = resolvedDeposit !== undefined
+            ? Math.round(resolvedDeposit + itemsSum * DEPOSIT_RATE)
+            : Math.round(totalAmount * DEPOSIT_RATE);
 
         // Generate Code
         let code = customCode;
@@ -358,7 +392,7 @@ const createEventBooking = async (req, res) => {
             spaceTitleAr: spacePair.ar,
             spaceTitleEn: spacePair.en,
             bookingMode,
-            pricePerGuest: bookingMode === "per_guest" ? (parseFloat(pricePerGuest) || 350) : 0,
+            pricePerGuest: ratePerGuest,
             selectedItems: sanitizedItems,
             itemsTotal: itemsSum,
             birthdayDetails: {
@@ -422,6 +456,7 @@ const createEventBooking = async (req, res) => {
             booking: populated
         });
     } catch (error) {
+        if (sendOrderError(res, error)) return;
         return res.status(500).json({ success: false, message: error.message });
     }
 };

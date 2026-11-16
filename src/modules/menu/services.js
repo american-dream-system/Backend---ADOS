@@ -6,6 +6,12 @@ const menuOrderModel = require("./orderModel");
 const guestModel = require("../guests/model");
 const LoyaltySettings = require("../loyalty/model");
 const { createAndEmitNotification } = require("../notifications/services");
+const { OrderError, wholeQty, round2, sendOrderError } = require("../../utils/orderPricing");
+const { findRestaurantItem } = require("../../utils/catalogs");
+
+// Delivery fee (free promotion) and VAT / municipal service: set here, never taken from the client
+const DELIVERY_FEE = 0;
+const VAT_RATE = 0.14;
 
 // @desc Middleware to resize and save uploaded menu item image
 const resizeMenuItemImage = async (req, res, next) => {
@@ -524,33 +530,45 @@ const placeOrder = async (req, res, next) => {
         const codeNumber = Math.floor(1000 + Math.random() * 9000);
         const orderCode = orderType === "delivery" ? `AD-DLV-${codeNumber}` : `ORD-${codeNumber}`;
 
-        // Normalize items and compute totals
+        // Every line is priced from the menu in the database (Media "restaurant" items / combos, or a
+        // MenuItem document). The client's price, line total, delivery fee, VAT and total are ignored.
+        if (parsedItems.length > 100) {
+            throw new OrderError("عدد أصناف الطلب كبير جداً", 400);
+        }
+        const merged = new Map();
+        for (const item of parsedItems) {
+            const id = String((item && (item.menuItem || item.id || item._id)) || "").trim();
+            if (!id) throw new OrderError("كل صنف في الطلب يجب أن يحمل معرّف الصنف", 400);
+            const qty = wholeQty(item.quantity ?? item.qty, { fallback: 1 });
+            merged.set(id, (merged.get(id) || 0) + qty);
+        }
         let subtotal = 0;
-        const normalizedItems = parsedItems.map(item => {
-            const price = Number(item.price) || 0;
-            const quantity = Number(item.qty || item.quantity || 1);
-            const lineTotal = price * quantity;
-            subtotal += lineTotal;
+        const normalizedItems = [];
+        for (const [id, rawQty] of merged) {
+            const quantity = wholeQty(rawQty, { label: "كمية الصنف" });
+            const found = await findRestaurantItem(id);
+            if (!found) {
+                throw new OrderError(`الصنف غير موجود أو غير متاح حالياً: ${id}`, 404);
+            }
+            const lineTotal = round2(found.price * quantity);
+            subtotal = round2(subtotal + lineTotal);
+            normalizedItems.push({
+                menuItem: found.menuItem,
+                nameEn: found.titleEn || found.titleAr || "Menu Item",
+                nameAr: found.titleAr || found.titleEn || "صنف من القائمة",
+                price: found.price,
+                quantity,
+                lineTotal
+            });
+        }
 
-            return {
-                menuItem: item.menuItem || (item.id && item.id.length === 24 ? item.id : undefined),
-                nameEn: item.nameEn || item.title || "Menu Item",
-                nameAr: item.nameAr || item.nameEn || "صنف من القائمة",
-                price: price,
-                quantity: quantity,
-                lineTotal: lineTotal
-            };
-        });
-
-        // Delivery fee & optional VAT logic matching frontend
-        const deliveryFee = orderType === "delivery" ? (subtotal > 0 ? (req.body.deliveryFee !== undefined ? Number(req.body.deliveryFee) : 25) : 0) : 0;
-        const vatAmount = req.body.vatAmount !== undefined ? Number(req.body.vatAmount) : 0;
-        const totalAmount = (req.body.totalAmount !== undefined && Number(req.body.totalAmount) > 0)
-            ? Number(req.body.totalAmount)
-            : (subtotal + deliveryFee + vatAmount);
+        const deliveryFee = orderType === "delivery" ? DELIVERY_FEE : 0;
+        const vatAmount = round2(subtotal * VAT_RATE);
+        const totalAmount = round2(subtotal + deliveryFee + vatAmount);
 
         // Auto determine payment status
-        let paymentStatus = req.body.paymentStatus;
+        // A client may only ask for "pending" / "pending_verification"; "paid" is set by staff
+        let paymentStatus = ["pending", "pending_verification"].includes(req.body.paymentStatus) ? req.body.paymentStatus : undefined;
         if (!paymentStatus) {
             if (paymentMethod === "instapay" || paymentMethod === "vodafone_cash") {
                 paymentStatus = paymentProof ? "pending_verification" : "pending";
@@ -659,6 +677,7 @@ const placeOrder = async (req, res, next) => {
             currentPoints: guestLatestPoints
         });
     } catch (error) {
+        if (sendOrderError(res, error)) return;
         next(error);
     }
 };

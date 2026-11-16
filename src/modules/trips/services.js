@@ -1,6 +1,22 @@
 const TripBooking = require("./model");
 const Guest = require("../guests/model");
 const { createAndEmitNotification } = require("../notifications/services");
+const { OrderError, wholeQty, round2, sendOrderError, MAX_STUDENTS } = require("../../utils/orderPricing");
+
+// Offer by id: a missing / unknown offer is refused, never replaced by another one
+const offerOrFail = (offerId) => {
+    const offer = TRIP_OFFERS.find(o => o.id === offerId);
+    if (!offer) throw new OrderError(`عرض الرحلة غير موجود: ${offerId}`, 404);
+    return offer;
+};
+// Students: a whole number, at least 15
+const studentsOf = (value, fallback = 15) => {
+    const n = wholeQty(value, { max: MAX_STUDENTS, label: "عدد الطلاب", fallback });
+    if (n < 15) throw new OrderError("أقل عدد للطلاب في الرحلة هو 15 طالباً", 400);
+    return n;
+};
+// Supervisors: a whole number 1..students
+const supervisorsOf = (value, students) => wholeQty(value, { max: students, label: "عدد المشرفين" });
 
 // Preset Trip Packages matching Client DesktopTripsPage
 const { pair } = require("../../utils/bilingualSnapshot");
@@ -106,15 +122,15 @@ const getTripOffers = async (req, res) => {
 const calculateTripCost = async (req, res) => {
     try {
         const { offerId = "full-dream", students = 15, isSupervisorsManual = false, supervisors } = req.body;
-        const offer = TRIP_OFFERS.find(o => o.id === offerId) || TRIP_OFFERS[0];
-        const studentCount = Math.max(15, parseInt(students, 10) || 15);
-        
+        const offer = offerOrFail(offerId);
+        const studentCount = studentsOf(students);
+
         let calculatedSupervisors = Math.max(1, Math.floor(studentCount / 15));
         if (isSupervisorsManual && supervisors) {
-            calculatedSupervisors = Math.max(1, parseInt(supervisors, 10));
+            calculatedSupervisors = supervisorsOf(supervisors, studentCount);
         }
 
-        const totalPrice = studentCount * offer.price;
+        const totalPrice = round2(studentCount * offer.price);
 
         return res.status(200).json({
             success: true,
@@ -129,6 +145,7 @@ const calculateTripCost = async (req, res) => {
             }
         });
     } catch (error) {
+        if (sendOrderError(res, error)) return;
         return res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -155,7 +172,7 @@ const createTripQuote = async (req, res) => {
             arrivalTime = "09:30 AM",
             quotationScreenshot = "",
             notes = "",
-            status = "quote_generated",
+            status: requestedStatus,
             bookingCode: requestedCode
         } = req.body;
 
@@ -166,11 +183,13 @@ const createTripQuote = async (req, res) => {
             });
         }
 
-        const studentsNum = Math.max(15, parseInt(studentsCount, 10) || 15);
+        // A client may only open a booking as a quote / inquiry; staff confirm it later
+        const status = ["quote_generated", "inquiry", "pending"].includes(requestedStatus) ? requestedStatus : "quote_generated";
+        const studentsNum = studentsOf(studentsCount);
 
-        // Find package price
-        const matchedOffer = TRIP_OFFERS.find(o => o.id === offerId);
-        const resolvedPrice = pricePerStudent || (matchedOffer ? matchedOffer.price : 380);
+        // The price per student is the offer's price on the server; pricePerStudent sent by the client is ignored
+        const matchedOffer = offerOrFail(offerId);
+        const resolvedPrice = matchedOffer.price;
         // Both-language offer name kept with the booking, so it survives later offer edits
         const offerPair = matchedOffer && (!offerTitle || offerTitle === matchedOffer.titleEn)
             ? { ar: matchedOffer.titleAr, en: matchedOffer.titleEn }
@@ -181,9 +200,11 @@ const createTripQuote = async (req, res) => {
         let finalSupervisors = supervisorsCount;
         if (!isSupervisorsManual || !finalSupervisors) {
             finalSupervisors = Math.max(1, Math.floor(studentsNum / 15));
+        } else {
+            finalSupervisors = supervisorsOf(finalSupervisors, studentsNum);
         }
 
-        const totalPrice = studentsNum * resolvedPrice;
+        const totalPrice = round2(studentsNum * resolvedPrice);
 
         // Generate or verify unique code
         let code = requestedCode;
@@ -271,6 +292,7 @@ const createTripQuote = async (req, res) => {
             trip: populated
         });
     } catch (error) {
+        if (sendOrderError(res, error)) return;
         return res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -426,15 +448,19 @@ const updateTripBooking = async (req, res) => {
         }
 
         const updates = { ...req.body };
+        // Totals are never taken from the request: they are recomputed from the offer's server price
+        delete updates.totalPrice;
+        delete updates.pricePerStudent;
 
         // Recalculate price if students or offer changed
         if (updates.studentsCount || updates.offerId) {
-            const studentCount = updates.studentsCount ? parseInt(updates.studentsCount, 10) : trip.studentsCount;
+            const studentCount = updates.studentsCount ? studentsOf(updates.studentsCount) : trip.studentsCount;
             const offerId = updates.offerId || trip.offerId;
             const matchedOffer = TRIP_OFFERS.find(o => o.id === offerId);
-            const price = updates.pricePerStudent || (matchedOffer ? matchedOffer.price : trip.pricePerStudent);
+            const price = matchedOffer ? matchedOffer.price : trip.pricePerStudent;
 
-            updates.totalPrice = studentCount * price;
+            updates.pricePerStudent = price;
+            updates.totalPrice = round2(studentCount * price);
             if (!updates.isSupervisorsManual && !updates.supervisorsCount) {
                 updates.supervisorsCount = Math.max(1, Math.floor(studentCount / 15));
             }
@@ -451,6 +477,7 @@ const updateTripBooking = async (req, res) => {
             trip: updatedTrip
         });
     } catch (error) {
+        if (sendOrderError(res, error)) return;
         return res.status(500).json({ success: false, message: error.message });
     }
 };

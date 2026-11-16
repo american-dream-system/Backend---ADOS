@@ -10,6 +10,7 @@ const LoyaltySettings = require("../loyalty/model");
 const { verifyToken } = require("../../utils/token");
 const { itemTitlePair, zoneSnapshot } = require("../../utils/bilingualSnapshot");
 const { createAndEmitNotification } = require("../notifications/services");
+const { OrderError, wholeQty, currentPrice, round2, sendOrderError } = require("../../utils/orderPricing");
 
 // @desc Middleware to resize and save uploaded payment receipt screenshot
 const resizePaymentProofImage = async (req, res, next) => {
@@ -250,41 +251,25 @@ const createBuying = async (req, res, next) => {
         // Resolve every ordered item (ticket list first, then package list) to the item it really is
         const validatedTickets = [];
         const validatedPackages = [];
+        // Price, points and totals come from the database document only. Whatever the client sent
+        // (priceEgp, unitPrice, totalPrice, pricePts, discounts) is ignored; only the quantity is read.
         const addLine = (item, resolved) => {
-            const qty = Math.max(1, parseInt(item.quantity || item.qty) || 1);
+            const qty = wholeQty(item.quantity ?? item.qty, { fallback: 1 });
             const { kind, doc } = resolved;
-            if (kind === "ticket") {
-                const unitPrice = item.priceEgp !== undefined && item.priceEgp !== null
-                    ? Number(item.priceEgp)
-                    : (doc.priceAfterDiscount !== undefined && doc.priceAfterDiscount !== null
-                        ? doc.priceAfterDiscount
-                        : doc.price);
-                const pointsUnit = item.pricePts !== undefined
-                    ? Number(item.pricePts)
-                    : (doc.pointsGets || 0);
-                validatedTickets.push({
-                    ticket: doc._id,
-                    title: item.title || doc.title || "تذكرة دخول ألعاب",
-                    ...snapshotOf(item, doc),
-                    quantity: qty,
-                    unitPrice,
-                    totalPrice: unitPrice * qty,
-                    pointsGets: pointsUnit * qty
-                });
-            } else {
-                const unitPrice = doc.priceAfterDiscount !== undefined && doc.priceAfterDiscount !== null
-                    ? doc.priceAfterDiscount
-                    : doc.price;
-                validatedPackages.push({
-                    package: doc._id,
-                    title: item.title || doc.title || "باقة ألعاب",
-                    ...snapshotOf(item, doc),
-                    quantity: qty,
-                    unitPrice,
-                    totalPrice: unitPrice * qty,
-                    pointsGets: (doc.pointsGets || 0) * qty
-                });
+            if (doc.active === false) {
+                throw new OrderError(`هذا العنصر غير متاح للحجز حالياً: ${doc.titleAr || doc.title || ""}`.trim(), 409);
             }
+            const unitPrice = currentPrice(doc);
+            const line = {
+                title: doc.title || (kind === "ticket" ? "تذكرة دخول ألعاب" : "باقة ألعاب"),
+                ...snapshotOf(item, doc),
+                quantity: qty,
+                unitPrice,
+                totalPrice: round2(unitPrice * qty),
+                pointsGets: (Number(doc.pointsGets) || 0) * qty
+            };
+            if (kind === "ticket") validatedTickets.push({ ticket: doc._id, ...line });
+            else validatedPackages.push({ package: doc._id, ...line });
         };
 
         for (const [list, hint] of [[tickets, "ticket"], [packages, "package"]]) {
@@ -307,7 +292,7 @@ const createBuying = async (req, res, next) => {
         // Calculate Totals
         const totalTicketsPrice = validatedTickets.reduce((sum, t) => sum + t.totalPrice, 0);
         const totalPackagesPrice = validatedPackages.reduce((sum, p) => sum + p.totalPrice, 0);
-        const totalPrice = totalTicketsPrice + totalPackagesPrice;
+        const totalPrice = round2(totalTicketsPrice + totalPackagesPrice);
 
         const totalTicketsPoints = validatedTickets.reduce((sum, t) => sum + t.pointsGets, 0);
         const totalPackagesPoints = validatedPackages.reduce((sum, p) => sum + p.pointsGets, 0);
@@ -376,7 +361,8 @@ const createBuying = async (req, res, next) => {
         }
 
         // Auto-determine paymentStatus based on method & receipt presence
-        let finalPaymentStatus = paymentStatus;
+        // A client may only ask for "pending" / "pending_verification"; "paid" is set by the server (points) or by staff
+        let finalPaymentStatus = ["pending", "pending_verification"].includes(paymentStatus) ? paymentStatus : undefined;
         if (!finalPaymentStatus) {
             if (paymentMethod === "points") {
                 finalPaymentStatus = "paid";
@@ -455,6 +441,7 @@ const createBuying = async (req, res, next) => {
             currentPoints: guestLatestPoints
         });
     } catch (error) {
+        if (sendOrderError(res, error)) return;
         next(error);
     }
 };

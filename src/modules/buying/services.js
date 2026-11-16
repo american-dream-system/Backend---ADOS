@@ -70,58 +70,45 @@ const SLUG_ZONE_MAP = {
     "adventureZone": "adventureZone"
 };
 
-// Helper to resolve a ticket document flexibly (ObjectId, Zone slug, or Title)
-const resolveTicketDocument = async (item) => {
-    const rawId = item.ticket || item.id || item._id;
-    let ticketDoc = null;
+const escapeRegex = (v) => String(v).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ""));
 
-    // 1. Try by ObjectId if valid
-    if (rawId && mongoose.Types.ObjectId.isValid(rawId)) {
-        ticketDoc = await ticketModel.findById(rawId);
-        if (ticketDoc) return ticketDoc;
+// Resolves one ordered item to the document it really is: { kind: "ticket" | "package", doc } or null.
+// A real id is looked up in BOTH collections (the list the cart sent it in is only a hint), so an
+// Adventure / Challenge pass (stored as a ticket) that an older cart sent as a package still orders
+// that pass, and never "any other item". Only ids that are not real ids (older slug / title carts)
+// fall back to a slug or title match. There is no "first item in the database" fallback: an item that
+// does not exist (deleted) is not found.
+const resolveOrderedItem = async (item, hint) => {
+    const field = hint === "ticket" ? item.ticket : item.package;
+    const rawId = field || item.id || item._id;
+    const models = hint === "ticket"
+        ? [["ticket", ticketModel], ["package", packageModel]]
+        : [["package", packageModel], ["ticket", ticketModel]];
+
+    if (isObjectId(rawId)) {
+        for (const [kind, model] of models) {
+            const doc = await model.findById(String(rawId));
+            if (doc) return { kind, doc };
+        }
+        return null;
     }
 
-    // 2. Try by Zone slug mapping
-    const targetZone = SLUG_ZONE_MAP[rawId] || SLUG_ZONE_MAP[item.zone];
-    if (targetZone) {
-        ticketDoc = await ticketModel.findOne({ page: targetZone });
-        if (ticketDoc) return ticketDoc;
+    // Older carts: a zone slug (tickets only), then an exact title match
+    const zone = SLUG_ZONE_MAP[rawId] || SLUG_ZONE_MAP[item.zone];
+    if (zone && hint === "ticket") {
+        const doc = await ticketModel.findOne({ page: zone });
+        if (doc) return { kind: "ticket", doc };
     }
-
-    // 3. Try by title search
     const searchTitle = item.title || item.name || rawId;
     if (searchTitle && typeof searchTitle === "string") {
-        ticketDoc = await ticketModel.findOne({
-            title: { $regex: searchTitle.trim(), $options: "i" }
-        });
-        if (ticketDoc) return ticketDoc;
+        const exact = { $regex: `^${escapeRegex(searchTitle.trim())}$`, $options: "i" };
+        for (const [kind, model] of models) {
+            const doc = await model.findOne({ $or: [{ title: exact }, { titleAr: exact }, { titleEn: exact }] });
+            if (doc) return { kind, doc };
+        }
     }
-
-    // 4. Fallback to any active ticket in the database
-    ticketDoc = await ticketModel.findOne();
-    return ticketDoc;
-};
-
-// Helper to resolve a package document flexibly
-const resolvePackageDocument = async (item) => {
-    const rawId = item.package || item.id || item._id;
-    let packageDoc = null;
-
-    if (rawId && mongoose.Types.ObjectId.isValid(rawId)) {
-        packageDoc = await packageModel.findById(rawId);
-        if (packageDoc) return packageDoc;
-    }
-
-    const searchTitle = item.title || item.name || rawId;
-    if (searchTitle && typeof searchTitle === "string") {
-        packageDoc = await packageModel.findOne({
-            title: { $regex: searchTitle.trim(), $options: "i" }
-        });
-        if (packageDoc) return packageDoc;
-    }
-
-    packageDoc = await packageModel.findOne();
-    return packageDoc;
+    return null;
 };
 
 // @desc Stream one payment receipt image (admin / cashier only; route is protected)
@@ -260,75 +247,60 @@ const createBuying = async (req, res, next) => {
             }
         }
 
-        // Process and validate Tickets
+        // Resolve every ordered item (ticket list first, then package list) to the item it really is
         const validatedTickets = [];
-        if (Array.isArray(tickets) && tickets.length > 0) {
-            for (const item of tickets) {
-                const qty = Math.max(1, parseInt(item.quantity || item.qty) || 1);
-                const ticketDoc = await resolveTicketDocument(item);
-
-                if (!ticketDoc) {
-                    return res.status(404).json({
-                        success: false,
-                        message: `لم نتمكن من العثور على التذكرة المطلوبة: ${item.ticket || item.id || item.title || "غير معروف"}`
-                    });
-                }
-
+        const validatedPackages = [];
+        const addLine = (item, resolved) => {
+            const qty = Math.max(1, parseInt(item.quantity || item.qty) || 1);
+            const { kind, doc } = resolved;
+            if (kind === "ticket") {
                 const unitPrice = item.priceEgp !== undefined && item.priceEgp !== null
                     ? Number(item.priceEgp)
-                    : (ticketDoc.priceAfterDiscount !== undefined && ticketDoc.priceAfterDiscount !== null
-                        ? ticketDoc.priceAfterDiscount
-                        : ticketDoc.price);
-
+                    : (doc.priceAfterDiscount !== undefined && doc.priceAfterDiscount !== null
+                        ? doc.priceAfterDiscount
+                        : doc.price);
                 const pointsUnit = item.pricePts !== undefined
                     ? Number(item.pricePts)
-                    : (ticketDoc.pointsGets || 0);
-
-                const lineTotal = unitPrice * qty;
-                const linePoints = pointsUnit * qty;
-
+                    : (doc.pointsGets || 0);
                 validatedTickets.push({
-                    ticket: ticketDoc._id,
-                    title: item.title || ticketDoc.title || "تذكرة دخول ألعاب",
-                    ...snapshotOf(item, ticketDoc),
+                    ticket: doc._id,
+                    title: item.title || doc.title || "تذكرة دخول ألعاب",
+                    ...snapshotOf(item, doc),
                     quantity: qty,
                     unitPrice,
-                    totalPrice: lineTotal,
-                    pointsGets: linePoints
+                    totalPrice: unitPrice * qty,
+                    pointsGets: pointsUnit * qty
+                });
+            } else {
+                const unitPrice = doc.priceAfterDiscount !== undefined && doc.priceAfterDiscount !== null
+                    ? doc.priceAfterDiscount
+                    : doc.price;
+                validatedPackages.push({
+                    package: doc._id,
+                    title: item.title || doc.title || "باقة ألعاب",
+                    ...snapshotOf(item, doc),
+                    quantity: qty,
+                    unitPrice,
+                    totalPrice: unitPrice * qty,
+                    pointsGets: (doc.pointsGets || 0) * qty
                 });
             }
-        }
+        };
 
-        // Process and validate Packages
-        const validatedPackages = [];
-        if (Array.isArray(packages) && packages.length > 0) {
-            for (const item of packages) {
-                const qty = Math.max(1, parseInt(item.quantity || item.qty) || 1);
-                const packageDoc = await resolvePackageDocument(item);
-
-                if (!packageDoc) {
+        for (const [list, hint] of [[tickets, "ticket"], [packages, "package"]]) {
+            if (!Array.isArray(list)) continue;
+            for (const item of list) {
+                const resolved = await resolveOrderedItem(item, hint);
+                if (!resolved) {
+                    const missing = (hint === "ticket" ? item.ticket : item.package) || item.id || item.title || "غير معروف";
                     return res.status(404).json({
                         success: false,
-                        message: `لم نتمكن من العثور على الباقة المطلوبة: ${item.package || item.id || item.title || "غير معروف"}`
+                        message: hint === "ticket"
+                            ? `لم نتمكن من العثور على التذكرة المطلوبة: ${missing}`
+                            : `لم نتمكن من العثور على الباقة المطلوبة: ${missing}`
                     });
                 }
-
-                const unitPrice = packageDoc.priceAfterDiscount !== undefined && packageDoc.priceAfterDiscount !== null
-                    ? packageDoc.priceAfterDiscount
-                    : packageDoc.price;
-                const pointsUnit = packageDoc.pointsGets || 0;
-                const lineTotal = unitPrice * qty;
-                const linePoints = pointsUnit * qty;
-
-                validatedPackages.push({
-                    package: packageDoc._id,
-                    title: item.title || packageDoc.title || "باقة ألعاب",
-                    ...snapshotOf(item, packageDoc),
-                    quantity: qty,
-                    unitPrice,
-                    totalPrice: lineTotal,
-                    pointsGets: linePoints
-                });
+                addLine(item, resolved);
             }
         }
 

@@ -4,10 +4,8 @@ const RestaurantHome = require("./model");
 const { normalizeImagePath } = require("../../utils/mediaPath");
 
 const SLOTS = ["hero", "book-table", "delivery", "menu"];
-const CARD_SLOTS = ["book-table", "delivery", "menu"];
-const MAX_CHIP = 40;
+const MAX_GALLERY = 24;
 const MAX_TITLE = 80;
-const MAX_TEXT = 240;
 const MEDIA_DIR = path.resolve("upload/media");
 
 const getDoc = async () => {
@@ -41,24 +39,16 @@ const removeMediaFile = (stored) => {
     fs.unlink(full, () => {});
 };
 
-const txt = (t) => ({ en: (t && t.en) || "", ar: (t && t.ar) || "" });
-
 const serialize = (doc) => {
     const images = {};
-    const cards = {};
     SLOTS.forEach((s) => {
         images[s] = imageUrl(doc.images && doc.images[s]);
     });
-    CARD_SLOTS.forEach((s) => {
-        const c = (doc.cards && doc.cards[s]) || {};
-        cards[s] = { title: txt(c.title), description: txt(c.description) };
-    });
+    const t = doc.galleryTitle || {};
     return {
         images,
-        heroChip: txt(doc.heroChip),
-        heroTitle: txt(doc.heroTitle),
-        heroSubtitle: txt(doc.heroSubtitle),
-        cards,
+        galleryTitle: { en: t.en || "", ar: t.ar || "" },
+        gallery: (doc.gallery || []).map((g) => ({ id: String(g._id), image: imageUrl(g.image) })),
     };
 };
 
@@ -98,47 +88,91 @@ const setImage = async (req, res, next) => {
     }
 };
 
-// Reads { en, ar } from the body. undefined = not sent, null = invalid, object = value
-const readText = (raw, max) => {
-    if (raw === undefined) return undefined;
-    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
-    const out = {};
-    for (const lang of ["en", "ar"]) {
-        const v = raw[lang];
-        if (v !== undefined && typeof v !== "string") return null;
-        out[lang] = String(v || "").trim();
-        if (out[lang].length > max) return null;
-    }
-    return out;
+
+// Files uploaded by a request that failed: remove them
+const discardUploads = (req) => {
+    const list = Array.isArray(req.body && req.body.images) ? req.body.images : [];
+    list.forEach(removeMediaFile);
+    if (req.body && req.body.image) removeMediaFile(req.body.image);
 };
 
-// @route PUT /api/restaurant-home/texts   (admin)
-// body: { heroChip, heroTitle, heroSubtitle, cards: { "book-table"|"delivery"|"menu": { title, description } } }
-// every text is { en, ar }; a field that is not sent is left alone; both empty = back to the default
-const setTexts = async (req, res, next) => {
+// @route POST /api/restaurant-home/gallery   (admin, multipart field "images", up to 10 files; appended in order)
+const addGalleryImages = async (req, res, next) => {
+    const uploaded = Array.isArray(req.body && req.body.images) ? req.body.images : [];
     try {
-        const body = req.body || {};
-        const bad = (what) => res.status(400).json({ success: false, message: `Invalid ${what}` });
+        if (!uploaded.length) {
+            return res.status(400).json({ success: false, message: "Image files are required (field: images)" });
+        }
         const doc = await getDoc();
+        if (doc.gallery.length + uploaded.length > MAX_GALLERY) {
+            discardUploads(req);
+            return res.status(400).json({ success: false, message: `The gallery can hold at most ${MAX_GALLERY} images` });
+        }
+        uploaded.forEach((name) => doc.gallery.push({ image: normalizeImagePath(name) }));
+        await doc.save();
+        send(res, doc);
+    } catch (error) {
+        discardUploads(req);
+        next(error);
+    }
+};
 
-        for (const [field, max] of [["heroChip", MAX_CHIP], ["heroTitle", MAX_TITLE], ["heroSubtitle", MAX_TEXT]]) {
-            const v = readText(body[field], max);
-            if (v === null) return bad(`${field} (max ${max} characters per language)`);
-            if (v !== undefined) doc[field] = v;
+// @route PUT /api/restaurant-home/gallery/:id   (admin, multipart field "image": replaces that image, keeps its place)
+const replaceGalleryImage = async (req, res, next) => {
+    const uploaded = req.body && req.body.image;
+    try {
+        if (!uploaded) {
+            return res.status(400).json({ success: false, message: "Image file is required (field: image)" });
         }
-        if (body.cards !== undefined) {
-            if (!body.cards || typeof body.cards !== "object" || Array.isArray(body.cards)) return bad("cards");
-            for (const slot of Object.keys(body.cards)) {
-                if (!CARD_SLOTS.includes(slot)) return bad(`card slot "${slot}"`);
-                const c = body.cards[slot] || {};
-                const title = readText(c.title, MAX_TITLE);
-                const description = readText(c.description, MAX_TEXT);
-                if (title === null) return bad(`${slot} title (max ${MAX_TITLE} characters per language)`);
-                if (description === null) return bad(`${slot} description (max ${MAX_TEXT} characters per language)`);
-                if (title !== undefined) doc.cards[slot].title = title;
-                if (description !== undefined) doc.cards[slot].description = description;
-            }
+        const doc = await getDoc();
+        const item = doc.gallery.id(req.params.id);
+        if (!item) {
+            removeMediaFile(uploaded);
+            return res.status(404).json({ success: false, message: "Gallery image not found" });
         }
+        const old = item.image;
+        item.image = normalizeImagePath(uploaded);
+        await doc.save();
+        if (old && old !== item.image) removeMediaFile(old);
+        send(res, doc);
+    } catch (error) {
+        removeMediaFile(uploaded);
+        next(error);
+    }
+};
+
+// @route DELETE /api/restaurant-home/gallery/:id   (admin)
+const removeGalleryImage = async (req, res, next) => {
+    try {
+        const doc = await getDoc();
+        const item = doc.gallery.id(req.params.id);
+        if (!item) return res.status(404).json({ success: false, message: "Gallery image not found" });
+        const old = item.image;
+        item.deleteOne();
+        await doc.save();
+        removeMediaFile(old);
+        send(res, doc);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @route PUT /api/restaurant-home/gallery/order   (admin) body: { ids: [every gallery image id, in the new order] }
+const reorderGallery = async (req, res, next) => {
+    try {
+        const ids = req.body && req.body.ids;
+        const doc = await getDoc();
+        const current = doc.gallery.map((g) => String(g._id));
+        const valid =
+            Array.isArray(ids) &&
+            ids.length === current.length &&
+            new Set(ids.map(String)).size === ids.length &&
+            ids.every((id) => current.includes(String(id)));
+        if (!valid) {
+            return res.status(400).json({ success: false, message: "ids must list every gallery image exactly once" });
+        }
+        const byId = new Map(doc.gallery.map((g) => [String(g._id), g]));
+        doc.gallery = ids.map((id) => byId.get(String(id)));
         await doc.save();
         send(res, doc);
     } catch (error) {
@@ -146,4 +180,36 @@ const setTexts = async (req, res, next) => {
     }
 };
 
-module.exports = { getRestaurantHome, setImage, setTexts };
+// @route PUT /api/restaurant-home/gallery-title   (admin) body: { en, ar }; both empty = back to the default title
+const setGalleryTitle = async (req, res, next) => {
+    try {
+        const body = req.body || {};
+        const out = {};
+        for (const lang of ["en", "ar"]) {
+            const v = body[lang];
+            if (v !== undefined && typeof v !== "string") {
+                return res.status(400).json({ success: false, message: "Invalid title" });
+            }
+            out[lang] = String(v || "").trim();
+            if (out[lang].length > MAX_TITLE) {
+                return res.status(400).json({ success: false, message: `Title must be at most ${MAX_TITLE} characters` });
+            }
+        }
+        const doc = await getDoc();
+        doc.galleryTitle = out;
+        await doc.save();
+        send(res, doc);
+    } catch (error) {
+        next(error);
+    }
+};
+
+module.exports = {
+    getRestaurantHome,
+    setImage,
+    addGalleryImages,
+    replaceGalleryImage,
+    removeGalleryImage,
+    reorderGallery,
+    setGalleryTitle,
+};

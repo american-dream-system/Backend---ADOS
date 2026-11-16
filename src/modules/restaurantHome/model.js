@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
-// Single-document store for the editable parts of the Restaurant & Cafe home page.
+// Single-document store for the Restaurant & Cafe home page: the four fixed images (hero + 3 cards)
+// and the gallery section (ordered list of images with an editable bilingual title).
 // Empty string = "not set by the admin": the public page keeps its current default.
 const textSchema = new mongoose.Schema(
     {
@@ -10,13 +11,7 @@ const textSchema = new mongoose.Schema(
     { _id: false }
 );
 
-const cardSchema = new mongoose.Schema(
-    {
-        title: { type: textSchema, default: () => ({}) },
-        description: { type: textSchema, default: () => ({}) },
-    },
-    { _id: false }
-);
+const galleryItemSchema = new mongoose.Schema({ image: { type: String, required: true } }, { _id: true });
 
 const restaurantHomeSchema = new mongoose.Schema(
     {
@@ -27,14 +22,8 @@ const restaurantHomeSchema = new mongoose.Schema(
             delivery: { type: String, default: "" },
             menu: { type: String, default: "" },
         },
-        heroChip: { type: textSchema, default: () => ({}) },
-        heroTitle: { type: textSchema, default: () => ({}) },
-        heroSubtitle: { type: textSchema, default: () => ({}) },
-        cards: {
-            "book-table": { type: cardSchema, default: () => ({}) },
-            delivery: { type: cardSchema, default: () => ({}) },
-            menu: { type: cardSchema, default: () => ({}) },
-        },
+        galleryTitle: { type: textSchema, default: () => ({}) },
+        gallery: { type: [galleryItemSchema], default: [] },
     },
     { timestamps: true }
 );

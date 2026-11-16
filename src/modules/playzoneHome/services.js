@@ -1,4 +1,5 @@
 const PlayzoneHome = require("./model");
+const { getFeaturedItems } = require("./featured");
 
 const ZONE_KEYS = ["kids-area", "fun-park", "challenge", "adventure"];
 const ACTIVITY_SLOTS = 4;
@@ -73,6 +74,18 @@ const send = (res, doc, status = 200) => res.status(status).json({ success: true
 const getPlayzoneHome = async (req, res, next) => {
     try {
         send(res, await getDoc());
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc Featured items of the Play Zone home (flagged by the admin, live items only, max 3)
+// @route GET /api/playzone-home/featured
+// @access Public
+const getFeatured = async (req, res, next) => {
+    try {
+        const items = await getFeaturedItems();
+        res.status(200).json({ success: true, count: items.length, data: items });
     } catch (error) {
         next(error);
     }
@@ -204,4 +217,4 @@ const deletePackage = async (req, res, next) => {
     }
 };
 
-module.exports = { getPlayzoneHome, setHero, setZone, setZoneDescription, setActivity, addPackage, updatePackage, deletePackage };
+module.exports = { getPlayzoneHome, getFeatured, setHero, setZone, setZoneDescription, setActivity, addPackage, updatePackage, deletePackage };

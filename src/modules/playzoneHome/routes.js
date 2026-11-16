@@ -4,6 +4,7 @@ const { protectGuest, allowedTo } = require("../../middlewares/authMiddleware");
 const { uploadSingleImage, imageProcessing } = require("../../middlewares/uploadImages");
 const {
     getPlayzoneHome,
+    getFeatured,
     setHero,
     setZone,
     setZoneDescription,
@@ -19,6 +20,7 @@ const image = [uploadSingleImage("image"), imageProcessing];
 
 // Public: the Play Zone home page reads this
 router.get("/", getPlayzoneHome);
+router.get("/featured", getFeatured);
 
 // Admin: single image slots (DELETE resets the slot to the static default)
 router.put("/hero", adminOnly, image, setHero);

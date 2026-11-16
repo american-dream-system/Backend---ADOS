@@ -55,6 +55,22 @@ const createPackage = async (req, res, next) => {
 // @access Public
 const getAllPackages = async (req, res, next) => {
     try {
+        // The public Packages page: only packages made for it. Tickets, zone passes, birthday
+        // packages and the Play Zone home "featured" flag never take part.
+        if (req.query.listing === "packages-page") {
+            const list = await packageModel
+                .find({
+                    active: { $ne: false },
+                    category: { $ne: "birthday" },
+                    $and: [
+                        { $or: [{ page: { $exists: false } }, { page: "" }, { page: /pack/i }] },
+                        { $or: [{ featuredZone: { $exists: false } }, { featuredZone: "" }, { featuredZone: null }] },
+                    ],
+                })
+                .sort({ createdAt: -1 });
+            return res.status(200).json({ success: true, count: list.length, data: list, packages: list });
+        }
+
         const filter = {};
 
         // Zone / Target Page filtering

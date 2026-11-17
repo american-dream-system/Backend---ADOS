@@ -514,6 +514,17 @@ const placeOrder = async (req, res, next) => {
             user
         } = req.body;
 
+        // InstaPay and Vodafone Cash orders must carry the number paid from and the payment screenshot;
+        // the order then waits for the admin to verify the payment (paid is set by staff only)
+        if (paymentMethod === "instapay" || paymentMethod === "vodafone_cash") {
+            if (!String(senderAccount || senderPhoneOrAccount || "").trim() || !paymentProof) {
+                return res.status(400).json({
+                    success: false,
+                    message: "الدفع عبر إنستاباي أو فودافون كاش يتطلب رقم الهاتف المحوَّل منه وصورة إيصال التحويل"
+                });
+            }
+        }
+
         let parsedItems = items;
         if (typeof parsedItems === "string") {
             try { parsedItems = JSON.parse(parsedItems); } catch (e) { parsedItems = []; }
@@ -571,7 +582,7 @@ const placeOrder = async (req, res, next) => {
         let paymentStatus = ["pending", "pending_verification"].includes(req.body.paymentStatus) ? req.body.paymentStatus : undefined;
         if (!paymentStatus) {
             if (paymentMethod === "instapay" || paymentMethod === "vodafone_cash") {
-                paymentStatus = paymentProof ? "pending_verification" : "pending";
+                paymentStatus = "pending_verification";
             } else {
                 paymentStatus = "pending";
             }

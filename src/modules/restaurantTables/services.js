@@ -8,7 +8,7 @@ const MAX_NAME = 80;
 const MAX_CATEGORY_NAME = 40;
 const MAX_TABLES = 60;
 const MAX_CATEGORIES = 30;
-// A booking is "open" until the guest was seated and left (completed) or it was cancelled
+// A booking is "open" until the guest was seated and left (completed), or it was cancelled or rejected
 const OPEN_BOOKING_STATUSES = ["pending", "confirmed"];
 
 // The tables and categories that existed before they became editable (same names, photos and areas)
@@ -205,7 +205,7 @@ const deleteTable = async (req, res, next) => {
                 res,
                 409,
                 `This table cannot be deleted: it has ${open} open booking${open === 1 ? "" : "s"} (pending or confirmed). ` +
-                    "A table can be deleted only when all its bookings are completed or cancelled."
+                    "A table can be deleted only when all its bookings are completed, cancelled or rejected."
             );
         }
         // Finished bookings keep the name the table had

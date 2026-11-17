@@ -72,8 +72,15 @@ const bookingTableSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["pending", "confirmed", "cancelled", "completed"],
+        enum: ["pending", "confirmed", "cancelled", "completed", "rejected"],
         default: "pending"
+    },
+    // Optional reason the admin gives when rejecting a booking (e.g. "Fully booked")
+    rejectionReason: {
+        type: String,
+        trim: true,
+        maxlength: 300,
+        default: ""
     }
 }, { timestamps: true });
 

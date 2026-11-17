@@ -325,7 +325,7 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
 
                 const filter = {
                     date: { $gte: startOfDay, $lte: endOfDay },
-                    status: { $ne: "cancelled" }
+                    status: { $nin: ["cancelled", "rejected"] }
                 };
                 if (time) filter.time = time;
                 if (area) filter.area = area;
@@ -527,7 +527,9 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
                             date: new Date(booking.date).toISOString().split("T")[0],
                             time: booking.time,
                             numberOfPerson: booking.numberOfPerson,
-                            status: booking.status
+                            status: booking.status,
+                            // Set when the restaurant rejected the booking (e.g. fully booked)
+                            rejectionReason: booking.status === "rejected" ? (booking.rejectionReason || "") : undefined
                         };
                     }
                 }

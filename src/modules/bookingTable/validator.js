@@ -102,8 +102,12 @@ const updateBookingStatusValidator = [
 
     check("status")
         .notEmpty().withMessage("حالة الحجز مطلوبة")
-        .isIn(["pending", "confirmed", "cancelled", "completed"])
-        .withMessage("حالة الحجز يجب أن تكون إحدى القيم التالية: (pending, confirmed, cancelled, completed)"),
+        .isIn(["pending", "confirmed", "cancelled", "completed", "rejected"])
+        .withMessage("حالة الحجز يجب أن تكون إحدى القيم التالية: (pending, confirmed, cancelled, completed, rejected)"),
+
+    check("rejectionReason")
+        .optional({ values: "null" })
+        .isString().trim().isLength({ max: 300 }).withMessage("سبب الرفض طويل جداً (300 حرف كحد أقصى)"),
 
     validatorMiddleware
 ];

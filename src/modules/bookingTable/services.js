@@ -337,22 +337,25 @@ const updateBookingTable = async (req, res, next) => {
     }
 };
 
-// @desc Update booking status (pending, confirmed, cancelled)
+// @desc Update booking status (pending, confirmed, cancelled, completed, rejected + optional rejectionReason)
 // @route PATCH /api/booking-table/:id/status
 // @access Staff / Admin
 const updateBookingStatus = async (req, res, next) => {
     try {
         const { status } = req.body;
-        if (!["pending", "confirmed", "cancelled", "completed"].includes(status)) {
+        if (!["pending", "confirmed", "cancelled", "completed", "rejected"].includes(status)) {
             return res.status(400).json({
                 success: false,
-                message: "Status must be 'pending', 'confirmed', 'cancelled', or 'completed'"
+                message: "Status must be 'pending', 'confirmed', 'cancelled', 'completed' or 'rejected'"
             });
         }
 
+        // The reason belongs to a rejection only: any other status clears it
+        const reason = status === "rejected" ? String(req.body.rejectionReason || "").trim().slice(0, 300) : "";
+
         const updated = await BookingTable.findByIdAndUpdate(
             req.params.id,
-            { status },
+            { status, rejectionReason: reason },
             { new: true, runValidators: true }
         ).populate("guest");
 
@@ -414,7 +417,7 @@ const checkAvailability = async (req, res, next) => {
 
         const filter = {
             date: { $gte: startOfDay, $lte: endOfDay },
-            status: { $ne: "cancelled" }
+            status: { $nin: ["cancelled", "rejected"] }
         };
 
         if (time) filter.time = time;

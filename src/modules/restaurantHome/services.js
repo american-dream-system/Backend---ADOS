@@ -2,7 +2,7 @@ const RestaurantHome = require("./model");
 const { normalizeImagePath } = require("../../utils/mediaPath");
 const { mediaUrl, removeMediaFile } = require("../../utils/mediaFiles");
 
-const SLOTS = ["hero", "book-table", "delivery", "menu", "table-hero"];
+const SLOTS = ["hero", "book-table", "delivery", "menu", "table-hero", "delivery-hero"];
 const MAX_GALLERY = 24;
 
 const getDoc = async () => {

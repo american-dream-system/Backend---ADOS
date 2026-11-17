@@ -1,11 +1,9 @@
-const fs = require("fs");
-const path = require("path");
 const RestaurantHome = require("./model");
 const { normalizeImagePath } = require("../../utils/mediaPath");
+const { mediaUrl, removeMediaFile } = require("../../utils/mediaFiles");
 
-const SLOTS = ["hero", "book-table", "delivery", "menu"];
+const SLOTS = ["hero", "book-table", "delivery", "menu", "table-hero"];
 const MAX_GALLERY = 24;
-const MEDIA_DIR = path.resolve("upload/media");
 
 const getDoc = async () => {
     let doc = await RestaurantHome.findOne({ key: "restaurant-home" });
@@ -20,23 +18,7 @@ const getDoc = async () => {
     return doc;
 };
 
-const imageUrl = (value) => {
-    if (!value || typeof value !== "string") return "";
-    const v = value.trim();
-    if (/^(https?:|data:|blob:|\/photo\/|\/assets\/)/.test(v)) return v;
-    const name = v.replace(/^\/+/, "").replace(/^media\//, "");
-    return `${process.env.BASE_URL || ""}/media/${name}`;
-};
-
-// Removes an uploaded file that is no longer referenced. Only bare names inside upload/media.
-const removeMediaFile = (stored) => {
-    if (!stored || typeof stored !== "string") return;
-    const name = stored.trim().replace(/^\/+/, "").replace(/^media\//, "");
-    if (!/^[A-Za-z0-9_.-]+$/.test(name) || name.startsWith(".")) return;
-    const full = path.resolve(MEDIA_DIR, name);
-    if (path.dirname(full) !== MEDIA_DIR) return;
-    fs.unlink(full, () => {});
-};
+const imageUrl = mediaUrl;
 
 const serialize = (doc) => {
     const images = {};

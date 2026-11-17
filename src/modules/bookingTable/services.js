@@ -1,3 +1,5 @@
+const mongoose = require("mongoose");
+const RestaurantTable = require("../restaurantTables/model").Table;
 const BookingTable = require("./model");
 const Guest = require("../guests/model");
 const { createAndEmitNotification } = require("../notifications/services");
@@ -28,13 +30,30 @@ const createBookingTable = async (req, res, next) => {
             guestPhone,
             phone,
             name,
-            area,
+            area: areaInput,
+            tableId,
             date,
             time,
             numberOfPerson,
             notes = "",
             status = "pending"
         } = req.body;
+        let area = areaInput;
+        let tableRef = null;
+
+        // The booked table: by id (managed tables) or by the area value an older client sends
+        if (tableId) {
+            if (!mongoose.isValidObjectId(tableId)) {
+                return res.status(400).json({ success: false, message: "Invalid table" });
+            }
+            tableRef = await RestaurantTable.findById(tableId);
+            if (!tableRef) {
+                return res.status(404).json({ success: false, message: "This table is no longer available" });
+            }
+            area = tableRef.areaValue || tableRef.nameEn;
+        } else if (area) {
+            tableRef = await RestaurantTable.findOne({ areaValue: area });
+        }
 
         // Validation for table details
         if (!area) {
@@ -108,6 +127,9 @@ const createBookingTable = async (req, res, next) => {
             guestName: resolvedGuest.name || targetName,
             guestPhone: resolvedGuest.phone || targetPhone,
             area,
+            tableId: tableRef ? tableRef._id : null,
+            tableNameEn: tableRef ? tableRef.nameEn : "",
+            tableNameAr: tableRef ? tableRef.nameAr : "",
             date: new Date(date),
             time,
             numberOfPerson: parseInt(numberOfPerson),

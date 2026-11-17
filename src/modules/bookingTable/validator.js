@@ -3,10 +3,11 @@ const validatorMiddleware = require("../../middlewares/validatorMiddlewar");
 
 // @desc التحقق من صحة بيانات حجز طاولة جديدة
 const createBookingTableValidator = [
+    // A booking names its table either by tableId (managed tables) or by the area value (older clients, chatbot)
     check("area")
+        .if((value, { req }) => !req.body.tableId)
         .notEmpty().withMessage("منطقة الجلوس مطلوبة (Step 1)")
-        .isIn(["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area", "Outdoor Family Area", "Outdoor Smoking Area", "Indoor Quiet Area", "VIP Area"])
-        .withMessage("المنطقة المختارة غير صحيحة، الخيارات: (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area, Outdoor Family Area, Outdoor Smoking Area, Indoor Quiet Area, VIP Area)"),
+        .isString().trim().isLength({ min: 1, max: 120 }).withMessage("المنطقة المختارة غير صحيحة"),
 
     check("date")
         .notEmpty().withMessage("تاريخ الحجز مطلوب")
@@ -73,8 +74,7 @@ const updateBookingTableValidator = [
 
     check("area")
         .optional()
-        .isIn(["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area", "Outdoor Family Area", "Outdoor Smoking Area", "Indoor Quiet Area", "VIP Area"])
-        .withMessage("المنطقة المختارة غير صحيحة، الخيارات: (Family 1, Family 2, Family 3, Roof, Indoor, Relaxation Area, Outdoor Family Area, Outdoor Smoking Area, Indoor Quiet Area, VIP Area)"),
+        .isString().trim().isLength({ min: 1, max: 120 }).withMessage("المنطقة المختارة غير صحيحة"),
 
     check("numberOfPerson")
         .optional()
@@ -111,8 +111,7 @@ const checkAvailabilityValidator = [
 
     check("area")
         .optional()
-        .isIn(["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area", "Outdoor Family Area", "Outdoor Smoking Area", "Indoor Quiet Area", "VIP Area"])
-        .withMessage("المنطقة المختارة غير صحيحة"),
+        .isString().trim().isLength({ min: 1, max: 120 }).withMessage("المنطقة المختارة غير صحيحة"),
 
     validatorMiddleware
 ];

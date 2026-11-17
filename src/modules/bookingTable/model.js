@@ -16,10 +16,27 @@ const bookingTableSchema = new mongoose.Schema({
     guestPhone: {
         type: String
     },
+    // Area name sent by the client. Tables are managed in the admin (RestaurantTable), so this is no longer a fixed
+    // list: tables created before keep their original value (areaValue), new tables use their English name.
     area: {
         type: String,
-        enum: ["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area", "Outdoor Family Area", "Outdoor Smoking Area", "Indoor Quiet Area", "VIP Area"],
+        trim: true,
         required: true
+    },
+    // The managed table that was booked, with the names it had at booking time (kept even if the table is
+    // renamed or deleted later)
+    tableId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "RestaurantTable",
+        default: null
+    },
+    tableNameEn: {
+        type: String,
+        default: ""
+    },
+    tableNameAr: {
+        type: String,
+        default: ""
     },
     date: {
         type: Date,

@@ -13,6 +13,7 @@ const restaurantHomeSchema = new mongoose.Schema(
             "book-table": { type: String, default: "" },
             delivery: { type: String, default: "" },
             menu: { type: String, default: "" },
+            "table-hero": { type: String, default: "" },
         },
         gallery: { type: [galleryItemSchema], default: [] },
     },

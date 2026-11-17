@@ -27,6 +27,7 @@ const loyaltyRoutes = require("./src/modules/loyalty/routes");
 const notificationsRoutes = require("./src/modules/notifications/routes");
 const playzoneHomeRoutes = require("./src/modules/playzoneHome/routes");
 const restaurantHomeRoutes = require("./src/modules/restaurantHome/routes");
+const restaurantTablesRoutes = require("./src/modules/restaurantTables/routes");
 const morgan = require("morgan");
 const path = require("path");
 const swaggerUi = require("swagger-ui-express");
@@ -84,7 +85,7 @@ app.use(flushOnWrite);
 app.use(
     [
         "/api/media", "/api/packages", "/api/packges", "/api/tickets",
-        "/api/menu", "/api/products", "/api/playzone-home", "/api/restaurant-home", "/api/loyalty", "/api/points",
+        "/api/menu", "/api/products", "/api/playzone-home", "/api/restaurant-home", "/api/restaurant-tables", "/api/loyalty", "/api/points",
         "/api/trips/offers", "/api/trips/packages", "/api/events/spaces", "/api/events/packages",
         "/api/buying/payment-accounts", "/api/orders/payment-accounts",
     ],
@@ -113,6 +114,7 @@ app.use("/api/points", loyaltyRoutes);
 app.use("/api/notifications", notificationsRoutes);
 app.use("/api/playzone-home", playzoneHomeRoutes);
 app.use("/api/restaurant-home", restaurantHomeRoutes);
+app.use("/api/restaurant-tables", restaurantTablesRoutes);
 
 // Not found route
 app.use((req, res, next) => {

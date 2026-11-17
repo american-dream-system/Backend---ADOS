@@ -35,6 +35,9 @@ const createBookingTable = async (req, res, next) => {
             date,
             time,
             numberOfPerson,
+            adults,
+            children,
+            highChair,
             notes = "",
             status = "pending"
         } = req.body;
@@ -117,6 +120,12 @@ const createBookingTable = async (req, res, next) => {
             });
         }
 
+        // Optional adults / children split and high chair request (older clients and the chatbot send none)
+        const toCount = (v) => (v === undefined || v === null || v === "" || isNaN(Number(v)) || Number(v) < 0 ? null : Math.floor(Number(v)));
+        const adultsCount = toCount(adults);
+        const childrenCount = toCount(children);
+        const highChairRequested = highChair === true || highChair === "true";
+
         // Generate unique booking code
         const bookingCode = await generateBookingCode();
 
@@ -133,6 +142,9 @@ const createBookingTable = async (req, res, next) => {
             date: new Date(date),
             time,
             numberOfPerson: parseInt(numberOfPerson),
+            adults: adultsCount,
+            children: childrenCount,
+            highChair: highChairRequested,
             notes,
             status
         });
@@ -156,7 +168,10 @@ const createBookingTable = async (req, res, next) => {
                     area,
                     date,
                     time,
-                    numberOfPerson
+                    numberOfPerson,
+                    adults: adultsCount,
+                    children: childrenCount,
+                    highChair: highChairRequested
                 }
             });
         } catch (notifErr) {
@@ -288,13 +303,16 @@ const getBookingsByGuest = async (req, res, next) => {
 // @access Public / Staff
 const updateBookingTable = async (req, res, next) => {
     try {
-        const { area, date, time, numberOfPerson, notes } = req.body;
+        const { area, date, time, numberOfPerson, adults, children, highChair, notes } = req.body;
 
         const updates = {};
         if (area) updates.area = area;
         if (date) updates.date = new Date(date);
         if (time) updates.time = time;
         if (numberOfPerson) updates.numberOfPerson = parseInt(numberOfPerson);
+        if (adults !== undefined && adults !== null && Number(adults) >= 0) updates.adults = Math.floor(Number(adults));
+        if (children !== undefined && children !== null && Number(children) >= 0) updates.children = Math.floor(Number(children));
+        if (highChair !== undefined) updates.highChair = highChair === true || highChair === "true";
         if (notes !== undefined) updates.notes = notes;
 
         const updated = await BookingTable.findByIdAndUpdate(req.params.id, updates, {

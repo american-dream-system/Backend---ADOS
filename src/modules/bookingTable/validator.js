@@ -20,6 +20,18 @@ const createBookingTableValidator = [
         .notEmpty().withMessage("عدد الأفراد / المقاعد مطلوب")
         .isInt({ min: 1 }).withMessage("عدد الأفراد يجب أن يكون 1 على الأقل"),
 
+    check("adults")
+        .optional({ values: "null" })
+        .isInt({ min: 0 }).withMessage("عدد البالغين غير صحيح"),
+
+    check("children")
+        .optional({ values: "null" })
+        .isInt({ min: 0 }).withMessage("عدد الأطفال غير صحيح"),
+
+    check("highChair")
+        .optional({ values: "null" })
+        .isBoolean().withMessage("طلب كرسي الأطفال غير صحيح"),
+
     check("guest")
         .optional()
         .isMongoId().withMessage("معرف الضيف غير صالح"),

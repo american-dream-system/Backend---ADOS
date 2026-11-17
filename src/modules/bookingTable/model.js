@@ -50,6 +50,22 @@ const bookingTableSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    // numberOfPerson stays the total. adults / children are the split the guest chose; bookings made before the
+    // split (or by the chatbot) have neither and show only the total.
+    adults: {
+        type: Number,
+        min: 0,
+        default: null
+    },
+    children: {
+        type: Number,
+        min: 0,
+        default: null
+    },
+    highChair: {
+        type: Boolean,
+        default: false
+    },
     notes: {
         type: String,
         default: ""

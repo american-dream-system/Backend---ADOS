@@ -616,19 +616,10 @@ const placeOrder = async (req, res, next) => {
             });
         }
 
-        let pointsAwarded = false;
-        let guestLatestPoints = undefined;
-        if (targetGuest && totalPoints > 0) {
-            const updatedG = await guestModel.findByIdAndUpdate(
-                targetGuest._id,
-                { $inc: { points: totalPoints } },
-                { new: true }
-            );
-            if (updatedG) {
-                pointsAwarded = true;
-                guestLatestPoints = updatedG.points;
-            }
-        }
+        // Points are never granted at order time. They are granted by updateOrderStatus once the payment is
+        // confirmed (InstaPay / Vodafone Cash: paymentStatus "paid") or the cash order is delivered.
+        const pointsAwarded = false;
+        const guestLatestPoints = targetGuest ? targetGuest.points : undefined;
 
         const newOrder = await menuOrderModel.create({
             orderCode,
@@ -684,7 +675,7 @@ const placeOrder = async (req, res, next) => {
             orderCode: newOrder.orderCode,
             data: newOrder,
             items: newOrder.items,
-            pointsEarned: pointsAwarded ? totalPoints : 0,
+            pointsEarned: 0,
             currentPoints: guestLatestPoints
         });
     } catch (error) {
@@ -817,13 +808,35 @@ const updateOrderStatus = async (req, res, next) => {
             });
         }
 
-        // If order cancelled, revert any awarded points
-        if (status === "cancelled" && order.pointsAwarded && order.guest && order.totalPoints > 0) {
-            await guestModel.findByIdAndUpdate(order.guest, {
-                $inc: { points: -order.totalPoints }
-            });
-            order.pointsAwarded = false;
-            await order.save();
+        // Loyalty points: granted once, only when the money is secured.
+        //   InstaPay / Vodafone Cash -> when the admin marks the payment "paid"
+        //   cash / card on delivery  -> when the order is "delivered" (or marked paid)
+        // Revoked if the order is cancelled or the payment fails.
+        const electronic = ["instapay", "vodafone_cash"].includes(order.paymentMethod);
+        const payable = order.paymentStatus === "paid" || (!electronic && order.status === "delivered");
+        const dead = order.status === "cancelled" || order.paymentStatus === "failed";
+        if (order.guest && order.totalPoints > 0) {
+            if (!dead && payable) {
+                const claimed = await menuOrderModel.findOneAndUpdate(
+                    { _id: order._id, pointsAwarded: false },
+                    { pointsAwarded: true },
+                    { new: true }
+                );
+                if (claimed) {
+                    await guestModel.findByIdAndUpdate(order.guest, { $inc: { points: order.totalPoints } });
+                    order.pointsAwarded = true;
+                }
+            } else if (dead && order.pointsAwarded) {
+                const revoked = await menuOrderModel.findOneAndUpdate(
+                    { _id: order._id, pointsAwarded: true },
+                    { pointsAwarded: false },
+                    { new: true }
+                );
+                if (revoked) {
+                    await guestModel.findByIdAndUpdate(order.guest, { $inc: { points: -order.totalPoints } });
+                    order.pointsAwarded = false;
+                }
+            }
         }
 
         res.status(200).json({

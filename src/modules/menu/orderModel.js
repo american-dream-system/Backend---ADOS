@@ -104,6 +104,12 @@ const menuOrderSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // true only on orders created under the "points after payment / delivery" rule. Orders created before it
+    // (field missing in the database) already got their points at creation and must never be granted again.
+    pointsOnPayment: {
+        type: Boolean,
+        default: false
+    },
     paymentMethod: {
         type: String,
         enum: ["cod", "cash", "card", "instapay", "vodafone_cash"],

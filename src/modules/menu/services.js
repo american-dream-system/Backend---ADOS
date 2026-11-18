@@ -637,6 +637,7 @@ const placeOrder = async (req, res, next) => {
             totalAmount,
             totalPoints,
             pointsAwarded,
+            pointsOnPayment: true,
             paymentMethod,
             paymentStatus,
             paymentProof,
@@ -816,7 +817,7 @@ const updateOrderStatus = async (req, res, next) => {
         const payable = order.paymentStatus === "paid" || (!electronic && order.status === "delivered");
         const dead = order.status === "cancelled" || order.paymentStatus === "failed";
         if (order.guest && order.totalPoints > 0) {
-            if (!dead && payable) {
+            if (!dead && payable && order.pointsOnPayment === true) {
                 const claimed = await menuOrderModel.findOneAndUpdate(
                     { _id: order._id, pointsAwarded: false },
                     { pointsAwarded: true },

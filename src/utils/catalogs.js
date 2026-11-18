@@ -13,6 +13,8 @@ const extraOf = async (page, section) => {
     const doc = await Media.findOne({ page, section }).lean();
     return (doc && doc.extraData) || {};
 };
+// A saved array (even an empty one) wins; the fallback is used only when nothing was ever saved.
+const savedOr = (saved, fallback) => (Array.isArray(saved) ? saved : fallback);
 const listOr = (saved, fallback) => (Array.isArray(saved) && saved.length > 0 ? saved : fallback);
 
 // One restaurant item (dish, combo or MenuItem document) by id: { id, titleEn, titleAr, price } or null.
@@ -22,7 +24,9 @@ const findRestaurantItem = async (rawId) => {
     const [items, combos] = await Promise.all([extraOf("restaurant", "items"), extraOf("restaurant", "combos")]);
     const dishDefaults = defaults.restaurant.items.filter((i) => !defaults.restaurant.combosIds.includes(i.id));
     const comboDefaults = defaults.restaurant.items.filter((i) => defaults.restaurant.combosIds.includes(i.id));
-    const all = [...listOr(items.items, dishDefaults), ...listOr(combos.combos, comboDefaults)];
+    // Once the admin has saved a section, the saved list is the only menu, even when it is empty (a deleted item must
+    // never come back from the built-in defaults). The defaults apply only to a section that was never saved.
+    const all = [...savedOr(items.items, dishDefaults), ...savedOr(combos.combos, comboDefaults)];
     const hit = all.find((i) => i && String(i.id) === id);
     if (hit) {
         const price = Number(hit.price);

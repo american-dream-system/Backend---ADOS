@@ -23,6 +23,9 @@ const tableSchema = new mongoose.Schema(
     {
         nameEn: { type: String, required: true, trim: true },
         nameAr: { type: String, required: true, trim: true },
+        // Optional short text shown under the name on the table card (either language may be empty)
+        descriptionEn: { type: String, default: "", trim: true },
+        descriptionAr: { type: String, default: "", trim: true },
         // Uploaded file name (upload/media) or a frontend static path (/photo/...) for the original tables
         image: { type: String, default: "" },
         smoking: { type: String, enum: ["smoking", "non-smoking"], required: true },

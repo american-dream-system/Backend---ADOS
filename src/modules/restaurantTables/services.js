@@ -5,6 +5,7 @@ const { normalizeImagePath } = require("../../utils/mediaPath");
 const { mediaUrl, removeMediaFile } = require("../../utils/mediaFiles");
 
 const MAX_NAME = 80;
+const MAX_DESCRIPTION = 200;
 const MAX_CATEGORY_NAME = 40;
 const MAX_TABLES = 60;
 const MAX_CATEGORIES = 30;
@@ -68,6 +69,8 @@ const serializeTable = (t) => ({
     id: String(t._id),
     nameEn: t.nameEn,
     nameAr: t.nameAr,
+    descriptionEn: t.descriptionEn || "",
+    descriptionAr: t.descriptionAr || "",
     image: mediaUrl(t.image),
     smoking: t.smoking,
     categoryIds: (t.categories || []).map(String),
@@ -120,6 +123,13 @@ const readTable = async (body, { creating }) => {
         if (v.length > MAX_NAME) return { error: `${label} must be at most ${MAX_NAME} characters` };
         values[field] = v;
     }
+    // Optional descriptions: an empty value clears the text
+    for (const [field, label] of [["descriptionEn", "English description"], ["descriptionAr", "Arabic description"]]) {
+        if (body[field] === undefined) continue;
+        const v = String(body[field]).trim();
+        if (v.length > MAX_DESCRIPTION) return { error: `${label} must be at most ${MAX_DESCRIPTION} characters` };
+        values[field] = v;
+    }
     if (body.smoking === undefined) {
         if (creating) return { error: "Smoking status is required (smoking or non-smoking)" };
     } else if (!["smoking", "non-smoking"].includes(body.smoking)) {
@@ -144,7 +154,7 @@ const readTable = async (body, { creating }) => {
     return { values };
 };
 
-// @route POST /api/restaurant-tables   (admin, multipart: nameEn, nameAr, smoking, categories (JSON list), image)
+// @route POST /api/restaurant-tables   (admin, multipart: nameEn, nameAr, descriptionEn, descriptionAr, smoking, categories (JSON list), image)
 const createTable = async (req, res, next) => {
     const uploaded = req.body && req.body.image;
     try {

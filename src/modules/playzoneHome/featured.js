@@ -1,5 +1,6 @@
 const ticketModel = require("../tickets/model");
 const packageModel = require("../packges/model");
+const { blankLegacyAge } = require("../../utils/legacyAge");
 
 // The admin flags up to 3 items (Play Zone home picker). The flag lives on the ticket / package
 // document itself, so an item that is deleted or unpublished drops out of the list by itself.
@@ -32,14 +33,12 @@ const getFeaturedItems = async () => {
         ticketModel.find({ [FLAG]: FLAG_ON, active: { $ne: false } }).lean(),
     ]);
     const items = [
-        ...pkgs.filter((p) => !isBirthday(p)).sort(byCreated).map((doc) => ({
-            kind: "package",
-            zone: "packages",
-            id: String(doc._id),
-            doc,
-        })),
+        ...pkgs.filter((p) => !isBirthday(p)).sort(byCreated).map((rawDoc) => {
+            const doc = blankLegacyAge(rawDoc);
+            return { kind: "package", zone: "packages", id: String(doc._id), doc };
+        }),
         ...tkts.sort(byCreated).map((rawDoc) => {
-            const doc = ticketModel.blankLegacyAge(rawDoc);
+            const doc = blankLegacyAge(rawDoc);
             const zone = zoneOf(doc.page);
             const kind = PASS_ZONES.includes(zone) && doc.category === "package" ? "pass" : "offer";
             return { kind, zone, id: String(doc._id), doc };

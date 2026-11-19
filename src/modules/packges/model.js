@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { blankLegacyAge, applyLegacyAge } = require("../../utils/legacyAge");
 
 const packageSchema = new mongoose.Schema({
     title: {
@@ -79,7 +80,7 @@ const packageSchema = new mongoose.Schema({
     },
     age: {
         type: String,
-        default: "جميع الأعمار"
+        default: ""
     },
     image: {
         type: String,
@@ -99,4 +100,8 @@ const packageSchema = new mongoose.Schema({
     }
 }, { timestamps: true, strict: false });
 
-module.exports = mongoose.model("Package", packageSchema);
+applyLegacyAge(packageSchema);
+
+const packageModel = mongoose.model("Package", packageSchema);
+packageModel.blankLegacyAge = blankLegacyAge;
+module.exports = packageModel;

@@ -1,5 +1,6 @@
 const Ticket = require("../tickets/model");
 const Package = require("../packges/model");
+const { blankLegacyAgeIn } = require("../../utils/legacyAge");
 const MenuItem = require("../menu/model");
 const MenuOrder = require("../menu/orderModel");
 const BookingTable = require("../bookingTable/model");
@@ -242,7 +243,7 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
                     ];
                 }
 
-                const tickets = await Ticket.find(query).limit(10).lean();
+                const tickets = blankLegacyAgeIn(await Ticket.find(query).limit(10).lean());
                 return {
                     success: true,
                     count: tickets.length,
@@ -271,7 +272,7 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
                     ];
                 }
 
-                const packages = await Package.find(query).limit(10).lean();
+                const packages = blankLegacyAgeIn(await Package.find(query).limit(10).lean());
                 return {
                     success: true,
                     count: packages.length,
@@ -281,6 +282,7 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
                         description: p.description,
                         price: p.price,
                         discountPrice: p.priceAfterDiscount,
+                        age: p.age,
                         points: p.pointsGets
                     }))
                 };

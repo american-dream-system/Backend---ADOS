@@ -1,4 +1,5 @@
 const ticketModel = require("./model");
+const { sortAdminOrder } = require("../../utils/adminOrder");
 
 // create ticket
 const createTicket = async (req, res) => {
@@ -55,7 +56,8 @@ const getAllTickets = async (req, res) => {
         const skip = (pageNum - 1) * limit;
 
         const total = await ticketModel.countDocuments(filter);
-        const tickets = await ticketModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit);
+        // Same order as the admin screen and the public pages (admin order, then oldest first)
+        const tickets = sortAdminOrder(await ticketModel.find(filter)).slice(skip, skip + limit);
 
         res.status(200).json({
             success: true,

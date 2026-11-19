@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
 const packageModel = require("./model");
+const { sortAdminOrder } = require("../../utils/adminOrder");
 
 // @desc Middleware to resize and save uploaded package image
 const resizePackageImage = async (req, res, next) => {
@@ -66,9 +67,9 @@ const getAllPackages = async (req, res, next) => {
                         { $or: [{ page: { $exists: false } }, { page: "" }, { page: /pack/i }] },
                         { $or: [{ featuredZone: { $exists: false } }, { featuredZone: "" }, { featuredZone: null }] },
                     ],
-                })
-                .sort({ createdAt: -1 });
-            return res.status(200).json({ success: true, count: list.length, data: list, packages: list });
+                });
+            const ordered = sortAdminOrder(list);
+            return res.status(200).json({ success: true, count: ordered.length, data: ordered, packages: ordered });
         }
 
         const filter = {};
@@ -145,7 +146,8 @@ const getAllPackages = async (req, res, next) => {
             ];
         }
 
-        let query = packageModel.find(filter).sort({ createdAt: -1 });
+        // Same order as the admin screen and the public pages (admin order, then oldest first)
+        let packages = sortAdminOrder(await packageModel.find(filter));
 
         // Numeric pagination
         const isNumericPage = req.query.page && !isNaN(req.query.page);
@@ -153,10 +155,9 @@ const getAllPackages = async (req, res, next) => {
             const pageNum = parseInt(req.query.page);
             const limitNum = parseInt(req.query.limit);
             const skip = (pageNum - 1) * limitNum;
-            query = query.skip(skip).limit(limitNum);
+            packages = packages.slice(skip, skip + limitNum);
         }
 
-        const packages = await query;
         res.status(200).json({
             success: true,
             count: packages.length,

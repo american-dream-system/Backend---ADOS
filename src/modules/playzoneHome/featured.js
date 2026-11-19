@@ -1,6 +1,7 @@
 const ticketModel = require("../tickets/model");
 const packageModel = require("../packges/model");
 const { blankLegacyAge } = require("../../utils/legacyAge");
+const { compareAdminOrder } = require("../../utils/adminOrder");
 
 // The admin flags up to 3 items (Play Zone home picker). The flag lives on the ticket / package
 // document itself, so an item that is deleted or unpublished drops out of the list by itself.
@@ -22,7 +23,7 @@ const zoneOf = (page) => {
     return String(page);
 };
 
-const byCreated = (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+const byCreated = compareAdminOrder; // admin order first, then oldest first (same rule as every list)
 const isBirthday = (p) => p.page === "birthday" || p.category === "birthday";
 
 // Featured items that can be shown right now: active, not a birthday package, at most 3.

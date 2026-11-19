@@ -44,7 +44,7 @@ const imageProcessing = async (req, res, next) => {
                     withoutEnlargement: true,
                 })
                 .toFormat("jpeg")
-                .jpeg({ quality: 90 })
+                .jpeg({ quality: 82, progressive: true, mozjpeg: true })
                 .toFile(`upload/media/${fileName}`);
 
             req.body.image = fileName;
@@ -66,7 +66,7 @@ const imageProcessing = async (req, res, next) => {
                         withoutEnlargement: true,
                     })
                     .toFormat("jpeg")
-                    .jpeg({ quality: 90 })
+                    .jpeg({ quality: 82, progressive: true, mozjpeg: true })
                     .toFile(`upload/media/${fileName}`);
 
                 images.push(fileName);

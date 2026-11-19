@@ -38,7 +38,8 @@ const getFeaturedItems = async () => {
             id: String(doc._id),
             doc,
         })),
-        ...tkts.sort(byCreated).map((doc) => {
+        ...tkts.sort(byCreated).map((rawDoc) => {
+            const doc = ticketModel.blankLegacyAge(rawDoc);
             const zone = zoneOf(doc.page);
             const kind = PASS_ZONES.includes(zone) && doc.category === "package" ? "pass" : "offer";
             return { kind, zone, id: String(doc._id), doc };

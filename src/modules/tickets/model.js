@@ -1,5 +1,16 @@
 const mongoose = require("mongoose");
 
+// Old tickets may still hold the former schema default; it is not a real age, so it reads as empty.
+// Stored records are left untouched. Only the exact old default text is blanked.
+const LEGACY_DEFAULT_AGE = { age: "all ages", ageAr: "جميع الأعمار" };
+const blankLegacyAge = (obj) => {
+    if (!obj) return obj;
+    for (const key of Object.keys(LEGACY_DEFAULT_AGE)) {
+        if (typeof obj[key] === "string" && obj[key].trim().toLowerCase() === LEGACY_DEFAULT_AGE[key]) obj[key] = "";
+    }
+    return obj;
+};
+
 const ticketSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -87,11 +98,11 @@ const ticketSchema = new mongoose.Schema({
     },
     age: {
         type: String,
-        default: "All Ages"
+        default: ""
     },
     ageAr: {
         type: String,
-        default: "جميع الأعمار"
+        default: ""
     },
     priceType: {
         type: String,
@@ -127,4 +138,9 @@ const ticketSchema = new mongoose.Schema({
     }
 }, { timestamps: true, strict: false });
 
-module.exports = mongoose.model("ticket", ticketSchema);
+ticketSchema.set("toJSON", { transform: (doc, ret) => blankLegacyAge(ret) });
+ticketSchema.set("toObject", { transform: (doc, ret) => blankLegacyAge(ret) });
+
+const ticketModel = mongoose.model("ticket", ticketSchema);
+ticketModel.blankLegacyAge = blankLegacyAge;
+module.exports = ticketModel;

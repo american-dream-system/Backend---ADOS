@@ -35,14 +35,13 @@ const tripBookingSchema = new mongoose.Schema({
     },
 
     // Selected Offer / Package
+    // The id of the offer in the database; older bookings keep their old ids and the saved name and price
     offerId: {
         type: String,
-        enum: ["full-dream", "play-dine", "play-zone", "custom"],
-        default: "full-dream"
+        required: true
     },
     offerTitle: {
-        type: String,
-        default: "FULL DREAM DAY"
+        type: String
     },
     // Snapshot taken at booking time (both languages)
     offerTitleAr: { type: String },
@@ -57,7 +56,7 @@ const tripBookingSchema = new mongoose.Schema({
     studentsCount: {
         type: Number,
         required: [true, "عدد الطلاب مطلوب"],
-        min: [15, "الحد الأدنى للطلاب هو 15 طالباً"]
+        min: [1, "عدد الطلاب مطلوب"]
     },
     supervisorsCount: {
         type: Number,

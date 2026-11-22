@@ -4,10 +4,15 @@ const { adminOnly } = require("../../middlewares/authMiddleware");
 const { protectGuest } = require("../../middlewares/authMiddleware");
 const { ownRecord, byId, byCode, ownGuestParam, ownGuestTarget } = require("../../middlewares/ownership");
 const TripBooking = require("./model");
+const { uploadSingleImage, imageProcessing } = require("../../middlewares/uploadImages");
 const own = { guestFields: ["guest"], phoneFields: ["phone"] };
 
 const {
     getTripOffers,
+    createOffer,
+    updateOffer,
+    deleteOffer,
+    reorderOffers,
     calculateTripCost,
     createTripQuote,
     getTripByCode,
@@ -30,6 +35,18 @@ const {
 router.get("/offers", getTripOffers);
 router.get("/packages", getTripOffers);
 router.post("/calculate", calculateTripCost);
+
+// Admin: manage the offers (fixed paths before the :id routes)
+const nameOfferFile = (req, res, next) => {
+    req.body = req.body || {};
+    req.body.page = "trip-offers";
+    req.body.section = "offer";
+    next();
+};
+router.put("/offers/order", adminOnly, reorderOffers);
+router.post("/offers", adminOnly, uploadSingleImage("image"), nameOfferFile, imageProcessing, createOffer);
+router.put("/offers/:id", adminOnly, uploadSingleImage("image"), nameOfferFile, imageProcessing, updateOffer);
+router.delete("/offers/:id", adminOnly, deleteOffer);
 
 // Create quote / booking
 router.post("/quote", createTripQuoteValidator, createTripQuote);

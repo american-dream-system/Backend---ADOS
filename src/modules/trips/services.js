@@ -1,95 +1,53 @@
 const TripBooking = require("./model");
 const Guest = require("../guests/model");
 const { createAndEmitNotification } = require("../notifications/services");
+const mongoose = require("mongoose");
+const TripOffer = require("./offerModel");
+const { mediaUrl, removeMediaFile } = require("../../utils/mediaFiles");
+const { normalizeImagePath } = require("../../utils/mediaPath");
 const { OrderError, wholeQty, round2, sendOrderError, MAX_STUDENTS } = require("../../utils/orderPricing");
 
+// ---- Trip offers: stored in the database, edited from the admin. There are no built-in offers.
+
+const serializeOffer = (o) => ({
+    id: String(o._id),
+    titleAr: o.titleAr,
+    titleEn: o.titleEn,
+    inclusionsAr: o.inclusionsAr || [],
+    inclusionsEn: o.inclusionsEn || [],
+    price: o.price,
+    image: o.image ? mediaUrl(o.image) : "",
+    minStudents: o.minStudents || 15,
+    studentsPerSupervisor: o.studentsPerSupervisor || 15,
+});
+
+const listOffers = async () => {
+    const offers = await TripOffer.find().sort({ order: 1, createdAt: 1 }).lean();
+    return offers.map(serializeOffer);
+};
+
+// The offer by id, from the database; null for an unknown / malformed id
+const findOffer = async (offerId) => {
+    if (!offerId || !mongoose.isValidObjectId(String(offerId))) return null;
+    return TripOffer.findById(String(offerId)).lean();
+};
+
 // Offer by id: a missing / unknown offer is refused, never replaced by another one
-const offerOrFail = (offerId) => {
-    const offer = TRIP_OFFERS.find(o => o.id === offerId);
-    if (!offer) throw new OrderError(`عرض الرحلة غير موجود: ${offerId}`, 404);
+const offerOrFail = async (offerId) => {
+    const offer = await findOffer(offerId);
+    if (!offer) throw new OrderError("عرض الرحلة غير موجود", 404);
     return offer;
 };
-// Students: a whole number, at least 15
-const studentsOf = (value, fallback = 15) => {
+// Students: a whole number, at least the offer's minimum
+const studentsOf = (value, minStudents = 15, fallback = minStudents) => {
     const n = wholeQty(value, { max: MAX_STUDENTS, label: "عدد الطلاب", fallback });
-    if (n < 15) throw new OrderError("أقل عدد للطلاب في الرحلة هو 15 طالباً", 400);
+    if (n < minStudents) throw new OrderError(`أقل عدد للطلاب في هذا العرض هو ${minStudents} طالباً`, 400);
     return n;
 };
+// One free supervisor for every `studentsPerSupervisor` students, at least one
+const freeSupervisorsOf = (students, studentsPerSupervisor = 15) => Math.max(1, Math.floor(students / (studentsPerSupervisor || 15)));
 // Supervisors: a whole number 1..students
 const supervisorsOf = (value, students) => wholeQty(value, { max: students, label: "عدد المشرفين" });
-
-// Preset Trip Packages matching Client DesktopTripsPage
-const { pair } = require("../../utils/bilingualSnapshot");
-
-const TRIP_OFFERS = [
-    {
-        id: "full-dream",
-        titleAr: "يوم الحلم الكامل",
-        titleEn: "FULL DREAM DAY",
-        descAr: "تجربة شاملة طوال اليوم عبر جميع مناطق الألعاب مع وجبة غداء كاملة ومرشد مخصص للمجموعة.",
-        descEn: "Comprehensive all-day experience across all 4 zones with lunch and dedicated group host.",
-        price: 380,
-        badgeAr: "الأكثر طلباً",
-        badgeEn: "Most Popular",
-        inclusionsAr: [
-            "دخول مفتوح لجميع مناطق الألعاب (فن بارك، التحدي والمغامرات)",
-            "وجبة غداء ساخنة متكاملة (سندوتشات أو وجبة أطفال + عصير)",
-            "مرشد سياحي وترفيهي مرافق طوال اليوم + صورة تذكارية جماعية",
-            "إشراف أمني مستمر وتواجد مسعفين مجهزين"
-        ],
-        inclusionsEn: [
-            "Play Zone Unlimited Access (Fun Park, Challenge & Adventure)",
-            "Full Hot Lunch Meal (Sandwich options or Kids Meal + Juice)",
-            "Dedicated Experience Guide & Welcome Group Photo Souvenir",
-            "Continuous Safety Supervision & First Aid Station Access"
-        ]
-    },
-    {
-        id: "play-dine",
-        titleAr: "لعب ووجبة لذيذة",
-        titleEn: "PLAY & DINE",
-        descAr: "باقة متوازنة تجمع بين ألعاب مختارة ووجبة شهية، مثالية للرحلات الصباحية أو المسائية.",
-        descEn: "A balanced package with exciting play and a delicious meal, perfect for morning or afternoon trips.",
-        price: 290,
-        badgeAr: "أفضل قيمة",
-        badgeEn: "Best Value",
-        inclusionsAr: [
-            "دخول منطقتي ألعاب من اختياركم (فن بارك أو التحدي أو المغامرات)",
-            "وجبة كومبو للأطفال + عصير طازج أو مشروب منعش",
-            "مشرف مخصص لتنظيم الدخول وتناول الوجبات",
-            "مسابقات جماعية وألعاب حماسية مع جوائز وهدايا"
-        ],
-        inclusionsEn: [
-            "Play Zone Access (Choose 2 Zones: Fun Park, Challenge or Adventure)",
-            "Kids Combo Meal & Fresh Juice / Soft Drink",
-            "Dedicated Area Host to coordinate arrival and meal",
-            "Group Activities & Team-Building Games (with prizes)"
-        ]
-    },
-    {
-        id: "play-zone",
-        titleAr: "تجربة الألعاب الترفيهية",
-        titleEn: "PLAY ZONE EXPERIENCE",
-        descAr: "طاقة وحماس بدون توقف! دخول كامل ومفتوح لمناطق الألعاب والأنشطة بدون وجبات.",
-        descEn: "Pure play and energy burn! Full access to games and activities without catering.",
-        price: 210,
-        badgeAr: "اقتصادية وممتعة",
-        badgeEn: "Budget Friendly",
-        inclusionsAr: [
-            "دخول يوم كامل لجميع مناطق الألعاب الثلاث",
-            "صورة جماعية تذكارية للمدرسة أو المؤسسة",
-            "مرشد استقبال لتنظيم الحضور وتعليمات السلامة",
-            "أساور دخول منسقة لسلامة الأطفال"
-        ],
-        inclusionsEn: [
-            "Full Day Play Zone access across all 3 play zones",
-            "Group photo souvenir for the school / organization",
-            "Dedicated Group Host for check-in & orientation",
-            "Coordinated System and Return Zone Safety Passes"
-        ]
-    }
-];
-
 // Helper to generate unique quotation / booking code (AD-TRIP-XXXX)
 const generateTripCode = async () => {
     let unique = false;
@@ -105,27 +63,28 @@ const generateTripCode = async () => {
     return code;
 };
 
-// @desc Get available Trip Offers
+// @desc Get available Trip Offers (exactly what the admin entered; empty when none)
 // @route GET /api/trips/offers (or /packages)
 // @access Public
-const getTripOffers = async (req, res) => {
-    return res.status(200).json({
-        success: true,
-        count: TRIP_OFFERS.length,
-        offers: TRIP_OFFERS
-    });
+const getTripOffers = async (req, res, next) => {
+    try {
+        const offers = await listOffers();
+        return res.status(200).json({ success: true, count: offers.length, offers });
+    } catch (error) {
+        return next(error);
+    }
 };
-
 // @desc Calculate Trip Cost and Supervisor complimentary ratio
 // @route POST /api/trips/calculate
 // @access Public
 const calculateTripCost = async (req, res) => {
     try {
-        const { offerId = "full-dream", students = 15, isSupervisorsManual = false, supervisors } = req.body;
-        const offer = offerOrFail(offerId);
-        const studentCount = studentsOf(students);
+        const { offerId, students, isSupervisorsManual = false, supervisors } = req.body;
+        const offer = await offerOrFail(offerId);
+        const studentCount = studentsOf(students, offer.minStudents || 15);
 
-        let calculatedSupervisors = Math.max(1, Math.floor(studentCount / 15));
+        const freeSupervisors = freeSupervisorsOf(studentCount, offer.studentsPerSupervisor);
+        let calculatedSupervisors = freeSupervisors;
         if (isSupervisorsManual && supervisors) {
             calculatedSupervisors = supervisorsOf(supervisors, studentCount);
         }
@@ -135,12 +94,12 @@ const calculateTripCost = async (req, res) => {
         return res.status(200).json({
             success: true,
             data: {
-                offerId: offer.id,
+                offerId: String(offer._id),
                 offerTitle: offer.titleEn,
                 pricePerStudent: offer.price,
                 students: studentCount,
                 supervisors: calculatedSupervisors,
-                freeSupervisors: Math.max(1, Math.floor(studentCount / 15)),
+                freeSupervisors,
                 totalPrice
             }
         });
@@ -160,10 +119,8 @@ const createTripQuote = async (req, res) => {
             orgType = "School",
             contactName,
             phone,
-            offerId = "full-dream",
-            offerTitle,
-            pricePerStudent,
-            studentsCount = 15,
+            offerId,
+            studentsCount,
             supervisorsCount,
             isSupervisorsManual = false,
             ageGroups = ["6-9", "10-12"],
@@ -185,21 +142,18 @@ const createTripQuote = async (req, res) => {
 
         // A client may only open a booking as a quote / inquiry; staff confirm it later
         const status = ["quote_generated", "inquiry", "pending"].includes(requestedStatus) ? requestedStatus : "quote_generated";
-        const studentsNum = studentsOf(studentsCount);
-
-        // The price per student is the offer's price on the server; pricePerStudent sent by the client is ignored
-        const matchedOffer = offerOrFail(offerId);
+        // The price per student is the offer's price on the server; any price sent by the client is ignored
+        const matchedOffer = await offerOrFail(offerId);
+        const studentsNum = studentsOf(studentsCount, matchedOffer.minStudents || 15);
         const resolvedPrice = matchedOffer.price;
-        // Both-language offer name kept with the booking, so it survives later offer edits
-        const offerPair = matchedOffer && (!offerTitle || offerTitle === matchedOffer.titleEn)
-            ? { ar: matchedOffer.titleAr, en: matchedOffer.titleEn }
-            : pair(null, null, offerTitle || "FULL DREAM DAY");
-        const resolvedTitle = offerTitle || (matchedOffer ? matchedOffer.titleEn : "FULL DREAM DAY");
+        // Both-language offer name kept with the booking, so it survives later offer edits or removal
+        const offerPair = { ar: matchedOffer.titleAr, en: matchedOffer.titleEn };
+        const resolvedTitle = matchedOffer.titleEn;
 
         // Calculate supervisors
         let finalSupervisors = supervisorsCount;
         if (!isSupervisorsManual || !finalSupervisors) {
-            finalSupervisors = Math.max(1, Math.floor(studentsNum / 15));
+            finalSupervisors = freeSupervisorsOf(studentsNum, matchedOffer.studentsPerSupervisor);
         } else {
             finalSupervisors = supervisorsOf(finalSupervisors, studentsNum);
         }
@@ -240,7 +194,7 @@ const createTripQuote = async (req, res) => {
             orgType,
             contactName,
             phone,
-            offerId,
+            offerId: String(matchedOffer._id),
             offerTitle: resolvedTitle,
             offerTitleAr: offerPair.ar,
             offerTitleEn: offerPair.en,
@@ -454,15 +408,15 @@ const updateTripBooking = async (req, res) => {
 
         // Recalculate price if students or offer changed
         if (updates.studentsCount || updates.offerId) {
-            const studentCount = updates.studentsCount ? studentsOf(updates.studentsCount) : trip.studentsCount;
             const offerId = updates.offerId || trip.offerId;
-            const matchedOffer = TRIP_OFFERS.find(o => o.id === offerId);
+            const matchedOffer = await findOffer(offerId); // null for an old booking whose offer was removed: its saved price stays
+            const studentCount = updates.studentsCount ? studentsOf(updates.studentsCount, matchedOffer ? (matchedOffer.minStudents || 15) : 1) : trip.studentsCount;
             const price = matchedOffer ? matchedOffer.price : trip.pricePerStudent;
 
             updates.pricePerStudent = price;
             updates.totalPrice = round2(studentCount * price);
             if (!updates.isSupervisorsManual && !updates.supervisorsCount) {
-                updates.supervisorsCount = Math.max(1, Math.floor(studentCount / 15));
+                updates.supervisorsCount = freeSupervisorsOf(studentCount, matchedOffer && matchedOffer.studentsPerSupervisor);
             }
         }
 
@@ -531,8 +485,145 @@ const deleteTrip = async (req, res) => {
     }
 };
 
+// ---- Admin: manage the offers (multipart or JSON; optional image in field "image")
+
+const MAX_OFFERS = 50;
+const MAX_LINES = 20;
+const MAX_LINE_LENGTH = 160;
+
+// Inclusions arrive as a list or as one text with a line per item
+const linesOf = (v) => (Array.isArray(v) ? v : String(v == null ? "" : v).split(/\r?\n/))
+    .map((x) => String(x).trim())
+    .filter(Boolean);
+
+// Reads and validates the fields of a create / update body; returns { error } or { values }
+const readOfferBody = (body, { partial }) => {
+    const values = {};
+    const text = (f, max) => {
+        if (body[f] === undefined) return partial ? null : `${f} is required`;
+        const v = String(body[f] || "").trim();
+        if (!v) return `${f} is required`;
+        if (v.length > max) return `${f} can be up to ${max} characters`;
+        values[f] = v;
+        return null;
+    };
+    for (const [f, max] of [["titleEn", 120], ["titleAr", 120]]) {
+        const err = text(f, max);
+        if (err) return { error: err };
+    }
+    if (body.price !== undefined || !partial) {
+        const price = Number(body.price);
+        if (body.price === undefined || body.price === "" || !Number.isFinite(price) || price < 0 || price > 1000000) {
+            return { error: "price must be a number from 0 to 1,000,000 (EGP per student)" };
+        }
+        values.price = round2(price);
+    }
+    for (const f of ["inclusionsEn", "inclusionsAr"]) {
+        if (body[f] === undefined) continue;
+        const lines = linesOf(body[f]);
+        if (lines.length > MAX_LINES || lines.some((l) => l.length > MAX_LINE_LENGTH)) {
+            return { error: `${f} can have up to ${MAX_LINES} lines of ${MAX_LINE_LENGTH} characters` };
+        }
+        values[f] = lines;
+    }
+    for (const f of ["minStudents", "studentsPerSupervisor"]) {
+        if (body[f] === undefined || body[f] === "") continue;
+        const n = Number(body[f]);
+        if (!Number.isInteger(n) || n < 1 || n > MAX_STUDENTS) {
+            return { error: `${f} must be a whole number from 1 to ${MAX_STUDENTS}` };
+        }
+        values[f] = n;
+    }
+    return { values };
+};
+
+// @route POST /api/trips/offers   (admin)
+const createOffer = async (req, res, next) => {
+    const uploaded = req.body && req.body.image;
+    try {
+        const { error, values } = readOfferBody(req.body || {}, { partial: false });
+        if (error) {
+            removeMediaFile(uploaded);
+            return res.status(400).json({ success: false, message: error });
+        }
+        if ((await TripOffer.countDocuments()) >= MAX_OFFERS) {
+            removeMediaFile(uploaded);
+            return res.status(400).json({ success: false, message: `At most ${MAX_OFFERS} offers` });
+        }
+        const last = await TripOffer.findOne().sort({ order: -1 }).lean();
+        const offer = await TripOffer.create({
+            ...values,
+            image: uploaded ? normalizeImagePath(uploaded) : "",
+            order: last ? (last.order || 0) + 1 : 0,
+        });
+        return res.status(201).json({ success: true, offer: serializeOffer(offer), offers: await listOffers() });
+    } catch (error) {
+        removeMediaFile(uploaded);
+        return next(error);
+    }
+};
+
+// @route PUT /api/trips/offers/:id   (admin; image replaces the old one; removeImage=true clears it)
+const updateOffer = async (req, res, next) => {
+    const uploaded = req.body && req.body.image;
+    try {
+        const offer = mongoose.isValidObjectId(req.params.id) ? await TripOffer.findById(req.params.id) : null;
+        if (!offer) {
+            removeMediaFile(uploaded);
+            return res.status(404).json({ success: false, message: "Offer not found" });
+        }
+        const { error, values } = readOfferBody(req.body || {}, { partial: true });
+        if (error) {
+            removeMediaFile(uploaded);
+            return res.status(400).json({ success: false, message: error });
+        }
+        const old = offer.image;
+        Object.assign(offer, values);
+        if (uploaded) offer.image = normalizeImagePath(uploaded);
+        else if (String(req.body.removeImage) === "true") offer.image = "";
+        await offer.save();
+        if (old && old !== offer.image) removeMediaFile(old);
+        return res.status(200).json({ success: true, offer: serializeOffer(offer), offers: await listOffers() });
+    } catch (error) {
+        removeMediaFile(uploaded);
+        return next(error);
+    }
+};
+
+// @route DELETE /api/trips/offers/:id   (admin; old bookings keep their saved name and price)
+const deleteOffer = async (req, res, next) => {
+    try {
+        const offer = mongoose.isValidObjectId(req.params.id) ? await TripOffer.findByIdAndDelete(req.params.id) : null;
+        if (!offer) return res.status(404).json({ success: false, message: "Offer not found" });
+        if (offer.image) removeMediaFile(offer.image);
+        return res.status(200).json({ success: true, offers: await listOffers() });
+    } catch (error) {
+        return next(error);
+    }
+};
+
+// @route PUT /api/trips/offers/order   (admin) body: { ids } every offer id in the new order
+const reorderOffers = async (req, res, next) => {
+    try {
+        const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(String) : [];
+        const existing = await TripOffer.find().select("_id").lean();
+        const have = existing.map((o) => String(o._id));
+        if (ids.length !== have.length || new Set(ids).size !== ids.length || !ids.every((i) => have.includes(i))) {
+            return res.status(400).json({ success: false, message: "ids must list every offer exactly once" });
+        }
+        await Promise.all(ids.map((id, i) => TripOffer.updateOne({ _id: id }, { order: i })));
+        return res.status(200).json({ success: true, offers: await listOffers() });
+    } catch (error) {
+        return next(error);
+    }
+};
+
 module.exports = {
     getTripOffers,
+    createOffer,
+    updateOffer,
+    deleteOffer,
+    reorderOffers,
     calculateTripCost,
     createTripQuote,
     getTripByCode,

@@ -16,19 +16,17 @@ const createTripQuoteValidator = [
         .notEmpty().withMessage("تاريخ الرحلة مطلوب")
         .isISO8601().withMessage("صيغة تاريخ الرحلة غير صحيحة (مثال: 2026-10-24)"),
 
+    // The smallest group depends on the chosen offer and is checked on the server with that offer
     check("studentsCount")
         .optional()
-        .isInt({ min: 15 }).withMessage("الحد الأدنى لعدد الطلاب هو 15 طالباً"),
-
+        .isInt({ min: 1 }).withMessage("عدد الطلاب يجب أن يكون رقماً صحيحاً موجباً"),
     check("shift")
         .optional()
         .isIn(["morning", "evening"]).withMessage("الفترة يجب أن تكون صباحية (morning) أو مسائية (evening)"),
 
     check("offerId")
-        .optional()
-        .isIn(["full-dream", "play-dine", "play-zone", "custom"])
-        .withMessage("باقة الرحلة المختارة غير صالحة"),
-
+        .notEmpty().withMessage("باقة الرحلة مطلوبة")
+        .isMongoId().withMessage("باقة الرحلة المختارة غير صالحة"),
     validatorMiddleware
 ];
 

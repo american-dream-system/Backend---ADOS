@@ -158,8 +158,8 @@ const forgetPassword = async (req, res, next) => {
             return genericReply();
         }
 
-        // Generate 6-digit verification code
-        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+        // Generate 6-digit verification code with a cryptographically secure generator
+        const resetCode = crypto.randomInt(100000, 1000000).toString();
 
         // Hash code and store in DB with 10 minutes expiry
         const hashedResetCode = crypto.createHash("sha256").update(resetCode).digest("hex");

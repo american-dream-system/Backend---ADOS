@@ -44,11 +44,12 @@ const signupValidator = [
             return true;
         }),
 
+    // No invented defaults: the account stores what the person entered, so both are required
     check("age")
-        .optional(),
+        .notEmpty().withMessage("العمر مطلوب"),
 
     check("gender")
-        .optional()
+        .notEmpty().withMessage("النوع مطلوب")
         .isIn(["male", "female"]).withMessage("النوع يجب أن يكون إما ذكر (male) أو أنثى (female)"),
 
     validatorMiddleware

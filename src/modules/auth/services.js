@@ -1,12 +1,19 @@
 const crypto = require("crypto");
 const guestModel = require("../guests/model");
 const LoyaltySettings = require("../loyalty/model");
+const bcrypt = require("bcryptjs");
 const sendEmail = require("../../utils/sendEmail");
 const { createToken, createRefreshToken, verifyRefreshToken } = require("../../utils/token");
 
 // ==========================================
 // AUTHENTICATION SERVICES
 // ==========================================
+
+// Compared against when no account matches, so an unknown account costs the same time as a wrong password
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync("no-such-account", 12);
+
+// One answer for "unknown account" and "wrong password": the response never says which one it was
+const INVALID_LOGIN_MESSAGE = "بيانات تسجيل الدخول غير صحيحة، يرجى التأكد من رقم الهاتف أو كلمة المرور";
 
 // @desc تسجيل حساب جديد
 // @route POST /api/auth/signup
@@ -28,8 +35,8 @@ const signup = async (req, res, next) => {
             email: email ? email.toLowerCase().trim() : undefined,
             phone: phone ? phone.trim() : undefined,
             password,
-            age: age || "25",
-            gender: gender || "male",
+            age,
+            gender,
             children: children || [],
             points: initialPoints
         });
@@ -85,19 +92,17 @@ const login = async (req, res, next) => {
             ]
         });
 
-        if (!guest) {
-            return res.status(401).json({
-                success: false,
-                message: "بيانات تسجيل الدخول غير صحيحة، يرجى التأكد من رقم الهاتف أو كلمة المرور"
-            });
+        // Verify password (against a dummy hash when there is no such account)
+        let isMatch = false;
+        if (guest) {
+            isMatch = await guest.comparePassword(password);
+        } else {
+            await bcrypt.compare(String(password), DUMMY_PASSWORD_HASH);
         }
-
-        // Verify password
-        const isMatch = await guest.comparePassword(password);
-        if (!isMatch) {
+        if (!guest || !isMatch) {
             return res.status(401).json({
                 success: false,
-                message: "كلمة المرور غير صحيحة"
+                message: INVALID_LOGIN_MESSAGE
             });
         }
 
@@ -143,11 +148,14 @@ const forgetPassword = async (req, res, next) => {
             ]
         });
 
+        // The same answer whether or not the account exists, so this endpoint cannot be used to find accounts
+        const genericReply = () => res.status(200).json({
+            success: true,
+            message: "إذا كان الحساب مسجلاً لدينا، فقد تم إرسال كود التحقق إلى بريده الإلكتروني"
+        });
+
         if (!guest) {
-            return res.status(404).json({
-                success: false,
-                message: "لا يوجد حساب مسجل برقم الهاتف أو البريد الإلكتروني المدخل"
-            });
+            return genericReply();
         }
 
         // Generate 6-digit verification code
@@ -160,12 +168,11 @@ const forgetPassword = async (req, res, next) => {
         guest.passwordResetVerified = false;
         await guest.save({ validateBeforeSave: false });
 
-        console.log(`🔐 Password Reset Code for [${guest.phone || guest.email}]: ${resetCode}`);
-
-        // Send email via sendEmail if email exists
+        // The code is never logged or returned: it only goes out by email (not awaited, so the reply
+        // takes the same time for every account)
         if (guest.email) {
             try {
-                await sendEmail({
+                Promise.resolve(sendEmail({
                     to: guest.email,
                     subject: "كود إعادة تعيين كلمة المرور - American Dream",
                     html: `
@@ -183,19 +190,13 @@ const forgetPassword = async (req, res, next) => {
                             <p style="color: #94a3b8; font-size: 12px; text-align: center;">إذا لم تقم بطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذه الرسالة بأمان.</p>
                         </div>
                     `
-                });
+                })).catch((emailError) => console.error("Email send error:", emailError.message));
             } catch (emailError) {
                 console.error("Email send error:", emailError.message);
             }
         }
 
-        res.status(200).json({
-            success: true,
-            message: guest.email 
-                ? "تم إرسال كود التحقق بنجاح إلى بريدك الإلكتروني"
-                : "تم إنشاء كود التحقق بنجاح",
-            resetCode: process.env.NODE_ENV === "development" ? resetCode : undefined
-        });
+        return genericReply();
     } catch (error) {
         next(error);
     }

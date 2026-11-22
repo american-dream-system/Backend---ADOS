@@ -41,6 +41,31 @@ const resizePaymentProofImage = async (req, res, next) => {
 };
 
 // Helper to generate unique order code (PZ-XXXXXX)
+// A points-paid order stores what it cost in totalPoints. If that order is cancelled or its payment fails,
+// the points go back to the buyer exactly once: the flag is claimed first by a conditional update, so
+// repeated cancel/reject calls (or two at once) cannot refund twice.
+const refundPointsOrder = async (buyingId) => {
+    const claimed = await buyingModel.findOneAndUpdate(
+        { _id: buyingId, paymentMethod: "points", pointsRefunded: { $ne: true }, guest: { $ne: null }, totalPoints: { $gt: 0 } },
+        { pointsRefunded: true },
+        { new: true }
+    );
+    if (!claimed) return 0;
+    try {
+        await guestModel.findByIdAndUpdate(claimed.guest, { $inc: { points: claimed.totalPoints } });
+    } catch (err) {
+        await buyingModel.findByIdAndUpdate(claimed._id, { pointsRefunded: false });
+        throw err;
+    }
+    return claimed.totalPoints;
+};
+
+// Take back points an order had earned (cash / transfer orders). Never goes below zero.
+const revokeEarnedPoints = (guestId, amount) =>
+    guestModel.findByIdAndUpdate(guestId, [
+        { $set: { points: { $max: [0, { $subtract: [{ $ifNull: ["$points", 0] }, amount] }] } } }
+    ]);
+
 const generateOrderCode = async () => {
     let unique = false;
     let code = "";
@@ -215,12 +240,13 @@ const createBuying = async (req, res, next) => {
         // Final sender account
         const finalSenderAccount = senderAccount || senderPhoneOrAccount || "";
 
-        // Resolve Guest details if provided or authenticated
+        // The buyer is only ever the user the Bearer token identifies. A guest id or phone in the
+        // request body is contact text, never an identity: it is not looked up, not linked to the
+        // order and can never earn or spend anyone's points.
         let resolvedGuest = null;
         let finalGuestName = reqGuestName || "";
         let finalGuestPhone = reqGuestPhone || "";
 
-        // 0. Resolve from Bearer token if present
         if (!req.guest && req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
             try {
                 const token = req.headers.authorization.split(" ")[1];
@@ -235,17 +261,6 @@ const createBuying = async (req, res, next) => {
             resolvedGuest = req.guest;
             finalGuestName = finalGuestName || req.guest.name;
             finalGuestPhone = finalGuestPhone || req.guest.phone;
-        } else if (guestId && mongoose.Types.ObjectId.isValid(guestId)) {
-            resolvedGuest = await guestModel.findById(guestId);
-            if (resolvedGuest) {
-                finalGuestName = finalGuestName || resolvedGuest.name;
-                finalGuestPhone = finalGuestPhone || resolvedGuest.phone;
-            }
-        } else if (finalGuestPhone) {
-            resolvedGuest = await guestModel.findOne({ phone: finalGuestPhone });
-            if (resolvedGuest) {
-                finalGuestName = finalGuestName || resolvedGuest.name;
-            }
         }
 
         // Resolve every ordered item (ticket list first, then package list) to the item it really is
@@ -302,6 +317,8 @@ const createBuying = async (req, res, next) => {
 
         // Calculate points required if paying with points, OR points earned if paying with money
         let totalPoints = 0;
+        let pointsCharged = 0; // points already taken from the buyer for this order (refunded if the order cannot be saved)
+        let guestLatestPoints = undefined; // the buyer's balance after this order
 
         if (paymentMethod === "points") {
             if (!loyaltySettings.isEnabled) {
@@ -314,30 +331,38 @@ const createBuying = async (req, res, next) => {
             // Points required = Total order price in EGP * conversion rate set by Admin (pointsPerEgp)
             totalPoints = Math.round(totalPrice * (loyaltySettings.pointsPerEgp || 10));
 
-            if (resolvedGuest) {
-                const currentBalance = Number(resolvedGuest.points) || 0;
-                if (currentBalance < (loyaltySettings.minRedeemPoints || 0)) {
-                    return res.status(400).json({
-                        success: false,
-                        message: `الحد الأدنى لاستخدام النقاط هو ${loyaltySettings.minRedeemPoints} نقطة. رصيدك الحالي: ${currentBalance} نقطة`
-                    });
-                }
-                if (currentBalance < totalPoints) {
-                    return res.status(400).json({
-                        success: false,
-                        message: `رصيد النقاط الحالي غير كافٍ. المطلوب: ${totalPoints} نقطة (حسب تسعير ${loyaltySettings.pointsPerEgp} نقطة لكل 1 ج.م)، ورصيدك الحالي: ${currentBalance} نقطة`
-                    });
-                }
-                // Deduct points from guest balance
-                await guestModel.findByIdAndUpdate(resolvedGuest._id, {
-                    $inc: { points: -totalPoints }
-                });
-            } else {
-                return res.status(400).json({
+            // Points can only be spent by the logged-in user the token identifies
+            if (!resolvedGuest) {
+                return res.status(401).json({
                     success: false,
-                    message: "يجب تسجيل الدخول كضيف مسجل لإتمام الدفع برصيد النقاط"
+                    message: "يجب تسجيل الدخول لإتمام الدفع برصيد النقاط"
                 });
             }
+
+            const currentBalance = Number(resolvedGuest.points) || 0;
+            if (currentBalance < (loyaltySettings.minRedeemPoints || 0)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `الحد الأدنى لاستخدام النقاط هو ${loyaltySettings.minRedeemPoints} نقطة. رصيدك الحالي: ${currentBalance} نقطة`
+                });
+            }
+
+            // One conditional update: it only succeeds while the balance still covers the order, so two
+            // simultaneous orders can never take the balance below zero.
+            const charged = await guestModel.findOneAndUpdate(
+                { _id: resolvedGuest._id, points: { $gte: totalPoints } },
+                { $inc: { points: -totalPoints } },
+                { new: true }
+            );
+            if (!charged) {
+                const fresh = await guestModel.findById(resolvedGuest._id).select("points").lean();
+                return res.status(400).json({
+                    success: false,
+                    message: `رصيد النقاط الحالي غير كافٍ. المطلوب: ${totalPoints} نقطة (حسب تسعير ${loyaltySettings.pointsPerEgp} نقطة لكل 1 ج.م)، ورصيدك الحالي: ${Number(fresh?.points) || 0} نقطة`
+                });
+            }
+            pointsCharged = totalPoints;
+            guestLatestPoints = charged.points;
         } else {
             // Paying with money/cash/instapay -> Guest earns reward points based on Admin's pointsEarnedPerEgp rate
             const calculatedEarned = Math.round(totalPrice * (loyaltySettings.pointsEarnedPerEgp !== undefined ? loyaltySettings.pointsEarnedPerEgp : 1));
@@ -347,7 +372,6 @@ const createBuying = async (req, res, next) => {
 
         // Credit earned points to the guest upon placing order
         let pointsAwarded = false;
-        let guestLatestPoints = undefined;
         if (paymentMethod !== "points" && totalPoints > 0 && resolvedGuest) {
             const updatedGuest = await guestModel.findByIdAndUpdate(
                 resolvedGuest._id,
@@ -375,28 +399,35 @@ const createBuying = async (req, res, next) => {
             }
         }
 
-        // Generate human-friendly QR order code (PZ-XXXXXX)
-        const orderCode = await generateOrderCode();
-
-        // Create buying record
-        const newBuying = await buyingModel.create({
-            orderCode,
-            guest: resolvedGuest ? resolvedGuest._id : (guestId || undefined),
-            guestName: finalGuestName || "عميل مميز",
-            guestPhone: finalGuestPhone,
-            senderAccount: finalSenderAccount,
-            tickets: validatedTickets,
-            packages: validatedPackages,
-            totalPrice,
-            totalPoints,
-            pointsAwarded,
-            paymentMethod,
-            paymentStatus: finalPaymentStatus,
-            paymentProof: paymentProof || undefined,
-            status: "confirmed",
-            used: false,
-            notes
-        });
+        // Create buying record. If it cannot be saved after the points were taken, give them back.
+        let newBuying;
+        try {
+            // Generate human-friendly QR order code (PZ-XXXXXX)
+            const orderCode = await generateOrderCode();
+            newBuying = await buyingModel.create({
+                orderCode,
+                guest: resolvedGuest ? resolvedGuest._id : undefined,
+                guestName: finalGuestName || "عميل مميز",
+                guestPhone: finalGuestPhone,
+                senderAccount: finalSenderAccount,
+                tickets: validatedTickets,
+                packages: validatedPackages,
+                totalPrice,
+                totalPoints,
+                pointsAwarded,
+                paymentMethod,
+                paymentStatus: finalPaymentStatus,
+                paymentProof: paymentProof || undefined,
+                status: "confirmed",
+                used: false,
+                notes
+            });
+        } catch (createError) {
+            if (pointsCharged > 0) {
+                await guestModel.findByIdAndUpdate(resolvedGuest._id, { $inc: { points: pointsCharged } });
+            }
+            throw createError;
+        }
 
         // Populate references
         const populatedBuying = await buyingModel.findById(newBuying._id)
@@ -524,8 +555,8 @@ const verifyPayment = async (req, res, next) => {
             buying.paymentVerifiedAt = new Date();
             buying.verifiedBy = req.user ? req.user.name : "Admin";
 
-            // Credit reward points to Guest if not credited yet
-            if (buying.guest && buying.totalPoints > 0 && !buying.pointsAwarded) {
+            // Credit reward points to Guest if not credited yet (a points-paid order's totalPoints is what it cost, not what it earned)
+            if (buying.guest && buying.paymentMethod !== "points" && buying.totalPoints > 0 && !buying.pointsAwarded) {
                 await guestModel.findByIdAndUpdate(buying.guest, {
                     $inc: { points: buying.totalPoints }
                 });
@@ -537,13 +568,13 @@ const verifyPayment = async (req, res, next) => {
             buying.rejectionReason = rejectionReason || "تم رفض إيصال التحويل لعدم مطابقة البيانات أو وضوح الصورة";
             buying.paymentVerifiedAt = new Date();
             buying.verifiedBy = req.user ? req.user.name : "Admin";
-            // If points were already credited on order placement, deduct them upon rejection
-            if (buying.guest && buying.totalPoints > 0 && buying.pointsAwarded) {
-                await guestModel.findByIdAndUpdate(buying.guest, {
-                    $inc: { points: -buying.totalPoints }
-                });
+            // If points were already credited on order placement, take them back (never below zero)
+            if (buying.guest && buying.paymentMethod !== "points" && buying.totalPoints > 0 && buying.pointsAwarded) {
+                await revokeEarnedPoints(buying.guest, buying.totalPoints);
                 buying.pointsAwarded = false;
             }
+            // A points-paid order that is rejected gets its points back
+            await refundPointsOrder(buying._id);
         } else {
             return res.status(400).json({
                 success: false,
@@ -594,7 +625,7 @@ const markCashCollected = async (req, res, next) => {
             : "تم تحصيل النقدية على الوصول بنجاح";
 
         // Credit points to guest upon actual payment if not already credited
-        if (buying.guest && buying.totalPoints > 0 && !buying.pointsAwarded) {
+        if (buying.guest && buying.paymentMethod !== "points" && buying.totalPoints > 0 && !buying.pointsAwarded) {
             await guestModel.findByIdAndUpdate(buying.guest, {
                 $inc: { points: buying.totalPoints }
             });
@@ -822,6 +853,12 @@ const updateBuyingStatus = async (req, res, next) => {
 
         if (!buying) {
             return res.status(404).json({ success: false, message: "Purchase record not found" });
+        }
+
+        // Cancelled, failed or refunded: a points-paid order gives its points back (once)
+        const closing = status === "cancelled" || ["failed", "refunded"].includes(paymentStatus);
+        if (closing && await refundPointsOrder(buying._id)) {
+            buying.pointsRefunded = true;
         }
 
         res.status(200).json({

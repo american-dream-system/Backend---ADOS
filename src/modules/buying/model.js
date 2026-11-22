@@ -98,6 +98,11 @@ const buyingSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // Points-paid orders only: the points were given back after a cancel / failed payment
+    pointsRefunded: {
+        type: Boolean,
+        default: false
+    },
     paymentMethod: {
         type: String,
         enum: ["cash", "card", "instapay", "vodafone_cash", "points", "money"],

@@ -10,6 +10,14 @@ const {
     replaceGalleryImage,
     removeGalleryImage,
     reorderGallery,
+    addVenue,
+    updateVenue,
+    removeVenue,
+    reorderVenues,
+    addEquipment,
+    updateEquipment,
+    removeEquipment,
+    reorderEquipment,
 } = require("./services");
 
 const adminOnly = [protectGuest, allowedTo("admin")];
@@ -18,6 +26,14 @@ const nameFile = (req, res, next) => {
     req.body = req.body || {};
     req.body.page = "events-home";
     req.body.section = req.params.slot || "gallery";
+    next();
+};
+
+// Names the stored venue photo after the list (family | meetings)
+const nameVenueFile = (req, res, next) => {
+    req.body = req.body || {};
+    req.body.page = "events-home";
+    req.body.section = `venue-${req.params.list}`;
     next();
 };
 
@@ -36,5 +52,17 @@ router.put("/gallery/order", adminOnly, reorderGallery);
 router.post("/gallery", adminOnly, arrayOfImages("images"), nameFile, imageProcessing, addGalleryImages);
 router.put("/gallery/:id", adminOnly, uploadSingleImage("image"), nameFile, imageProcessing, replaceGalleryImage);
 router.delete("/gallery/:id", adminOnly, removeGalleryImage);
+
+// Admin only: Family Events venues and Meetings spaces (list = family | meetings), fixed paths before the :id routes
+router.put("/venues/:list/order", adminOnly, reorderVenues);
+router.post("/venues/:list", adminOnly, uploadSingleImage("image"), nameVenueFile, imageProcessing, addVenue);
+router.put("/venues/:list/:id", adminOnly, uploadSingleImage("image"), nameVenueFile, imageProcessing, updateVenue);
+router.delete("/venues/:list/:id", adminOnly, removeVenue);
+
+// Admin only: Meetings equipment options
+router.put("/equipment/order", adminOnly, reorderEquipment);
+router.post("/equipment", adminOnly, addEquipment);
+router.put("/equipment/:id", adminOnly, updateEquipment);
+router.delete("/equipment/:id", adminOnly, removeEquipment);
 
 module.exports = router;

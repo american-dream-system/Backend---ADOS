@@ -42,10 +42,14 @@ const eventRequestSchema = new mongoose.Schema(
         notes: { type: String, trim: true, maxlength: 1000, default: "" },
 
         // What was asked for (venue, occasion type, celebrant or organization)
-        venue: { type: String, trim: true, maxlength: 40, default: "" },
+        // Family Events / Meetings: the venue or space picked from the admin list (id, and its name in both languages at the time)
+        venueId: { type: String, trim: true, maxlength: 40, default: "" },
+        venue: { type: String, trim: true, maxlength: 80, default: "" },
+        venueAr: { type: String, trim: true, maxlength: 80, default: "" },
         occasion: { type: String, trim: true, maxlength: 80, default: "" },
         organizer: { type: String, trim: true, maxlength: 120, default: "" },
         equipment: { type: [String], default: [] },
+        equipmentAr: { type: [String], default: [] },
 
         // Price: "package", "per_person" or "on_request" (meetings). On request means no price at all (null), never 0.
         priceMode: { type: String, enum: ["package", "per_person", "on_request"], required: true },

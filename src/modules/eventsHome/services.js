@@ -31,6 +31,20 @@ const serializeTier = (t) => ({
     includesAr: (t && t.includesAr ? [...t.includesAr] : []).filter(Boolean),
 });
 
+const serializeVenue = (v) => ({
+    id: String(v._id),
+    titleEn: v.titleEn,
+    titleAr: v.titleAr,
+    descEn: v.descEn || "",
+    descAr: v.descAr || "",
+    minGuests: v.minGuests,
+    maxGuests: v.maxGuests,
+    image: imageUrl(v.image),
+    imageLabelEn: v.imageLabelEn || "",
+    imageLabelAr: v.imageLabelAr || "",
+});
+const serializeEquipment = (e) => ({ id: String(e._id), titleEn: e.titleEn, titleAr: e.titleAr });
+
 const serialize = (doc) => {
     const images = {};
     SLOTS.forEach((s) => {
@@ -39,6 +53,9 @@ const serialize = (doc) => {
     return {
         images,
         gallery: (doc.gallery || []).map((g) => ({ id: String(g._id), image: imageUrl(g.image) })),
+        familyVenues: (doc.familyVenues || []).map(serializeVenue),
+        meetingSpaces: (doc.meetingSpaces || []).map(serializeVenue),
+        meetingEquipment: (doc.meetingEquipment || []).map(serializeEquipment),
         birthdayPerPerson: {
             midweek: serializeTier(doc.birthdayPerPerson && doc.birthdayPerPerson.midweek),
             weekend: serializeTier(doc.birthdayPerPerson && doc.birthdayPerPerson.weekend),
@@ -227,7 +244,230 @@ const setBirthdayPerPerson = async (req, res, next) => {
     }
 };
 
+// ---- Venues (Family Events), spaces (Meetings) and equipment (Meetings): ordered lists edited from the admin
+const LISTS = { family: "familyVenues", meetings: "meetingSpaces" };
+const MAX_VENUES = 12;
+const MAX_EQUIPMENT = 30;
+
+// Reads and validates a venue from the request body. Returns { error } or { values }.
+const readVenue = (body, { partial }) => {
+    const out = {};
+    const text = (key, label, { required, max }) => {
+        if (body[key] === undefined) {
+            if (required && !partial) return `${label} is required`;
+            return null;
+        }
+        const v = String(body[key]).trim();
+        if (required && !v) return `${label} is required`;
+        if (v.length > max) return `${label} must be at most ${max} characters`;
+        out[key] = v;
+        return null;
+    };
+    const err =
+        text("titleEn", "English title", { required: true, max: 80 }) ||
+        text("titleAr", "Arabic title", { required: true, max: 80 }) ||
+        text("descEn", "English description", { max: 200 }) ||
+        text("descAr", "Arabic description", { max: 200 }) ||
+        text("imageLabelEn", "English image label", { max: 40 }) ||
+        text("imageLabelAr", "Arabic image label", { max: 40 });
+    if (err) return { error: err };
+    for (const key of ["minGuests", "maxGuests"]) {
+        if (body[key] === undefined) {
+            if (!partial) return { error: "Minimum and maximum guests are required" };
+            continue;
+        }
+        const n = Number(body[key]);
+        if (!Number.isInteger(n) || n < 1 || n > 1000) return { error: "Guests must be a whole number from 1 to 1000" };
+        out[key] = n;
+    }
+    return { values: out };
+};
+
+const listKey = (req, res) => {
+    const key = LISTS[req.params.list];
+    if (!key) {
+        res.status(400).json({ success: false, message: "Unknown list" });
+        return null;
+    }
+    return key;
+};
+
+// @route POST /api/events-home/venues/:list   (admin, multipart: fields + optional "image"; list = family | meetings)
+const addVenue = async (req, res, next) => {
+    const uploaded = req.body && req.body.image;
+    try {
+        const key = listKey(req, res);
+        if (!key) return removeMediaFile(uploaded);
+        const { error, values } = readVenue(req.body || {}, { partial: false });
+        if (error || values.minGuests > values.maxGuests) {
+            removeMediaFile(uploaded);
+            return res.status(400).json({ success: false, message: error || "Minimum guests cannot be above the maximum" });
+        }
+        const doc = await getDoc();
+        if (doc[key].length >= MAX_VENUES) {
+            removeMediaFile(uploaded);
+            return res.status(400).json({ success: false, message: `At most ${MAX_VENUES} items` });
+        }
+        doc[key].push({ ...values, image: uploaded ? normalizeImagePath(uploaded) : "" });
+        await doc.save();
+        send(res, doc);
+    } catch (error) {
+        removeMediaFile(uploaded);
+        next(error);
+    }
+};
+
+// @route PUT /api/events-home/venues/:list/:id   (admin; a new image replaces the old; removeImage=true clears it)
+const updateVenue = async (req, res, next) => {
+    const uploaded = req.body && req.body.image;
+    try {
+        const key = listKey(req, res);
+        if (!key) return removeMediaFile(uploaded);
+        const doc = await getDoc();
+        const item = doc[key].id(req.params.id);
+        if (!item) {
+            removeMediaFile(uploaded);
+            return res.status(404).json({ success: false, message: "Not found" });
+        }
+        const { error, values } = readVenue(req.body || {}, { partial: true });
+        const min = values && values.minGuests !== undefined ? values.minGuests : item.minGuests;
+        const max = values && values.maxGuests !== undefined ? values.maxGuests : item.maxGuests;
+        if (error || min > max) {
+            removeMediaFile(uploaded);
+            return res.status(400).json({ success: false, message: error || "Minimum guests cannot be above the maximum" });
+        }
+        const old = item.image;
+        Object.assign(item, values);
+        if (uploaded) item.image = normalizeImagePath(uploaded);
+        else if (String(req.body.removeImage) === "true") item.image = "";
+        await doc.save();
+        if (old && old !== item.image) removeMediaFile(old);
+        send(res, doc);
+    } catch (error) {
+        removeMediaFile(uploaded);
+        next(error);
+    }
+};
+
+// @route DELETE /api/events-home/venues/:list/:id   (admin)
+const removeVenue = async (req, res, next) => {
+    try {
+        const key = listKey(req, res);
+        if (!key) return;
+        const doc = await getDoc();
+        const item = doc[key].id(req.params.id);
+        if (!item) return res.status(404).json({ success: false, message: "Not found" });
+        const old = item.image;
+        item.deleteOne();
+        await doc.save();
+        removeMediaFile(old);
+        send(res, doc);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Reorders a list: ids = every id of the list, in the new order
+const reorderList = async (res, doc, key, ids) => {
+    const current = doc[key].map((g) => String(g._id));
+    const valid =
+        Array.isArray(ids) &&
+        ids.length === current.length &&
+        new Set(ids.map(String)).size === ids.length &&
+        ids.every((id) => current.includes(String(id)));
+    if (!valid) return res.status(400).json({ success: false, message: "ids must list every item exactly once" });
+    const byId = new Map(doc[key].map((g) => [String(g._id), g]));
+    doc[key] = ids.map((id) => byId.get(String(id)));
+    await doc.save();
+    send(res, doc);
+};
+
+// @route PUT /api/events-home/venues/:list/order   (admin)
+const reorderVenues = async (req, res, next) => {
+    try {
+        const key = listKey(req, res);
+        if (!key) return;
+        await reorderList(res, await getDoc(), key, req.body && req.body.ids);
+    } catch (error) {
+        next(error);
+    }
+};
+
+const readEquipment = (body) => {
+    const titleEn = String((body && body.titleEn) || "").trim();
+    const titleAr = String((body && body.titleAr) || "").trim();
+    if (!titleEn || !titleAr) return { error: "English and Arabic names are required" };
+    if (titleEn.length > 80 || titleAr.length > 80) return { error: "Names must be at most 80 characters" };
+    return { values: { titleEn, titleAr } };
+};
+
+// @route POST /api/events-home/equipment   (admin) body { titleEn, titleAr }
+const addEquipment = async (req, res, next) => {
+    try {
+        const { error, values } = readEquipment(req.body);
+        if (error) return res.status(400).json({ success: false, message: error });
+        const doc = await getDoc();
+        if (doc.meetingEquipment.length >= MAX_EQUIPMENT) {
+            return res.status(400).json({ success: false, message: `At most ${MAX_EQUIPMENT} items` });
+        }
+        doc.meetingEquipment.push(values);
+        await doc.save();
+        send(res, doc);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @route PUT /api/events-home/equipment/:id   (admin)
+const updateEquipment = async (req, res, next) => {
+    try {
+        const { error, values } = readEquipment(req.body);
+        if (error) return res.status(400).json({ success: false, message: error });
+        const doc = await getDoc();
+        const item = doc.meetingEquipment.id(req.params.id);
+        if (!item) return res.status(404).json({ success: false, message: "Not found" });
+        Object.assign(item, values);
+        await doc.save();
+        send(res, doc);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @route DELETE /api/events-home/equipment/:id   (admin)
+const removeEquipment = async (req, res, next) => {
+    try {
+        const doc = await getDoc();
+        const item = doc.meetingEquipment.id(req.params.id);
+        if (!item) return res.status(404).json({ success: false, message: "Not found" });
+        item.deleteOne();
+        await doc.save();
+        send(res, doc);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @route PUT /api/events-home/equipment/order   (admin)
+const reorderEquipment = async (req, res, next) => {
+    try {
+        await reorderList(res, await getDoc(), "meetingEquipment", req.body && req.body.ids);
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
+    getDoc,
+    readVenue,
+    addVenue,
+    updateVenue,
+    removeVenue,
+    reorderVenues,
+    addEquipment,
+    updateEquipment,
+    removeEquipment,
+    reorderEquipment,
     getEventsHome,
     setBirthdayPerPerson,
     setImage,

@@ -14,6 +14,27 @@ const perPersonTierSchema = {
     includesAr: { type: [String], default: [] },
 };
 
+// Venue cards of the Family Events wizard and spaces of the Meetings & Private Events wizard (same shape): title and
+// description in both languages, the guest range, one image (both languages) and its label. Edited from the admin;
+// there are no built-in venues or spaces.
+const venueSchema = new mongoose.Schema({
+    titleEn: { type: String, required: true, trim: true, maxlength: 80 },
+    titleAr: { type: String, required: true, trim: true, maxlength: 80 },
+    descEn: { type: String, default: "", trim: true, maxlength: 200 },
+    descAr: { type: String, default: "", trim: true, maxlength: 200 },
+    minGuests: { type: Number, required: true, min: 1 },
+    maxGuests: { type: Number, required: true, min: 1 },
+    image: { type: String, default: "" },
+    imageLabelEn: { type: String, default: "", trim: true, maxlength: 40 },
+    imageLabelAr: { type: String, default: "", trim: true, maxlength: 40 },
+});
+
+// Equipment options of the Meetings & Private Events wizard
+const equipmentSchema = new mongoose.Schema({
+    titleEn: { type: String, required: true, trim: true, maxlength: 80 },
+    titleAr: { type: String, required: true, trim: true, maxlength: 80 },
+});
+
 const eventsHomeSchema = new mongoose.Schema(
     {
         key: { type: String, default: "events-home", unique: true },
@@ -28,6 +49,9 @@ const eventsHomeSchema = new mongoose.Schema(
             venueOutdoor: { type: String, default: "" },
         },
         gallery: { type: [galleryItemSchema], default: [] },
+        familyVenues: { type: [venueSchema], default: [] },
+        meetingSpaces: { type: [venueSchema], default: [] },
+        meetingEquipment: { type: [equipmentSchema], default: [] },
         birthdayPerPerson: {
             midweek: { type: new mongoose.Schema(perPersonTierSchema, { _id: false }), default: () => ({}) },
             weekend: { type: new mongoose.Schema(perPersonTierSchema, { _id: false }), default: () => ({}) },

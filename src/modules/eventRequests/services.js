@@ -58,6 +58,28 @@ const tierOfDate = (dateStr) => {
 const egyptToday = () =>
     new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 
+// The admin's Family Events venues, Meetings spaces and Meetings equipment (Events Home page)
+const eventsHomeLists = async () => {
+    const home = await EventsHome.findOne({ key: "events-home" }).lean();
+    return {
+        familyVenues: (home && home.familyVenues) || [],
+        meetingSpaces: (home && home.meetingSpaces) || [],
+        meetingEquipment: (home && home.meetingEquipment) || [],
+    };
+};
+
+// The chosen venue/space from an admin list: it must exist and the guest count must fit its range
+const pickVenue = (list, venueId, guests, doc) => {
+    const v = list.find((x) => String(x._id) === String(venueId || ""));
+    if (!v) throw fail(409, "Choose one of the available venues");
+    if (!Number.isInteger(guests) || guests < v.minGuests || guests > v.maxGuests) {
+        throw fail(400, `${v.titleEn}: guests must be from ${v.minGuests} to ${v.maxGuests}`);
+    }
+    doc.venueId = String(v._id);
+    doc.venue = v.titleEn.slice(0, 80);
+    doc.venueAr = v.titleAr.slice(0, 80);
+};
+
 // The signed-in customer, if the request carries a valid token (the endpoint stays public)
 const optionalGuest = async (req) => {
     try {
@@ -101,10 +123,10 @@ const createEventRequest = async (req, res, next) => {
             timeText: String(b.time || "").trim(),
             guestCount: guests,
             notes: String(b.notes || "").trim(),
-            venue: String(b.venue || "").trim(),
+            venue: kind === "birthday" ? String(b.venue || "").trim() : "",
             occasion: String(b.occasion || "").trim(),
             organizer: String(b.organizer || "").trim(),
-            equipment: (Array.isArray(b.equipment) ? b.equipment : []).map((x) => String(x).trim().slice(0, 60)).filter(Boolean).slice(0, 20),
+            equipment: [],
             lang,
         };
 
@@ -139,18 +161,35 @@ const createEventRequest = async (req, res, next) => {
                 };
             }
         } else if (kind === "family") {
-            if (guests !== null && (!Number.isInteger(guests) || guests < 1 || guests > 500)) {
-                throw fail(400, "Guests must be a whole number from 1 to 500");
+            if (guests !== null && (!Number.isInteger(guests) || guests < 1 || guests > 1000)) {
+                throw fail(400, "Guests must be a whole number from 1 to 1000");
             }
+            // The venue comes from the admin list; the guest count must fit its range
+            const { familyVenues } = await eventsHomeLists();
+            if (familyVenues.length) pickVenue(familyVenues, b.venueId, guests, doc);
             const pkg = (await adminPackages("family")).find((p) => p.id === String(b.packageId || ""));
             if (!pkg) throw fail(409, "This package is not available");
             doc.priceMode = "package";
             doc.totalPrice = pkg.price;
             doc.snapshot = { packageId: pkg.id, packageNameAr: pkg.nameAr, packageNameEn: pkg.nameEn };
         } else {
-            if (!Number.isInteger(guests) || guests < MIN_MEETING || guests > MAX_MEETING) {
+            const { meetingSpaces, meetingEquipment } = await eventsHomeLists();
+            if (meetingSpaces.length) {
+                // The space comes from the admin list; the attendee count must fit its capacity
+                pickVenue(meetingSpaces, b.venueId, guests, doc);
+            } else if (!Number.isInteger(guests) || guests < MIN_MEETING || guests > MAX_MEETING) {
                 throw fail(400, `Attendees must be from ${MIN_MEETING} to ${MAX_MEETING}`);
             }
+            // Equipment: ids (or English names) of the admin's list; anything else is refused
+            const asked = (Array.isArray(b.equipment) ? b.equipment : []).map((x) => String(x).trim()).filter(Boolean).slice(0, 30);
+            const chosen = [];
+            for (const key of asked) {
+                const item = meetingEquipment.find((e) => String(e._id) === key || e.titleEn === key);
+                if (!item) throw fail(409, "Choose equipment from the available list");
+                if (!chosen.includes(item)) chosen.push(item);
+            }
+            doc.equipment = chosen.map((e) => e.titleEn);
+            doc.equipmentAr = chosen.map((e) => e.titleAr);
             // Meetings have no fixed price: saved as a request, price on request (null, never 0)
             doc.priceMode = "on_request";
             doc.totalPrice = null;

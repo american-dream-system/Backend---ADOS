@@ -7,6 +7,7 @@ const ticketModel = require("../tickets/model");
 const packageModel = require("../packges/model");
 const guestModel = require("../guests/model");
 const LoyaltySettings = require("../loyalty/model");
+const { readPaymentAccounts } = require("../paymentAccounts/services");
 const { verifyToken } = require("../../utils/token");
 const { itemTitlePair, zoneSnapshot } = require("../../utils/bilingualSnapshot");
 const { createAndEmitNotification } = require("../notifications/services");
@@ -155,53 +156,54 @@ const getPaymentProof = (req, res) => {
 // @desc Get official payment accounts (InstaPay, Vodafone Cash, Cash rules)
 // @route GET /api/buying/payment-accounts
 // @access Public
-const getPaymentAccounts = async (req, res) => {
-    // The accounts come only from the environment settings. A method whose account is not set is left out
-    // (there is no built-in number, handle or name), so the site hides it.
-    const instapayAddress = (process.env.INSTAPAY_IPA || "").trim();
-    const vodafoneNumber = (process.env.VODAFONE_CASH_NUMBER || "").trim();
-    const instapayName = (process.env.INSTAPAY_RECIPIENT_NAME || "").trim();
-    const vodafoneName = (process.env.VODAFONE_CASH_RECIPIENT_NAME || "").trim();
+const getPaymentAccounts = async (req, res, next) => {
+    try {
+        // The accounts come only from the admin "Payment Accounts" setting. A method whose account is not set is
+        // left out (no default, no environment value, no built-in number), so the site hides it.
+        const saved = await readPaymentAccounts();
 
-    const accounts = {
-        cash: {
-            method: "cash",
-            titleAr: "الدفع نقداً عند الوصول (Cash at Gate)",
-            titleEn: "Pay Cash upon Arrival",
-            instructionsAr: "ادفع كاش على الوصول عند الوصول للمنتزه لاستلام تذكرة وإسورة الدخول الورقية.",
-            instructionsEn: "Pay cash at the ticket desk upon arrival to receive your physical wristband/ticket pass."
+        const accounts = {
+            cash: {
+                method: "cash",
+                titleAr: "الدفع نقداً عند الوصول (Cash at Gate)",
+                titleEn: "Pay Cash upon Arrival",
+                instructionsAr: "ادفع كاش على الوصول عند الوصول للمنتزه لاستلام تذكرة وإسورة الدخول الورقية.",
+                instructionsEn: "Pay cash at the ticket desk upon arrival to receive your physical wristband/ticket pass."
+            }
+        };
+
+        if (saved.instapayAddress) {
+            accounts.instapay = {
+                method: "instapay",
+                titleAr: "إنستاباي (InstaPay)",
+                titleEn: "InstaPay Direct IPA",
+                accountAddress: saved.instapayAddress,
+                ...(saved.instapayName ? { recipientName: saved.instapayName } : {}),
+                instructionsAr: "افتح تطبيق إنستاباي، حول المبلغ المطلوب بدقة لعنوان الدفع اللحظي، ثم التقط صورة للإيصال وارفعها.",
+                instructionsEn: "Open your InstaPay app, transfer the exact amount to the IPA address, and upload the transfer receipt screenshot."
+            };
         }
-    };
 
-    if (instapayAddress) {
-        accounts.instapay = {
-            method: "instapay",
-            titleAr: "إنستاباي (InstaPay)",
-            titleEn: "InstaPay Direct IPA",
-            accountAddress: instapayAddress,
-            ...(instapayName ? { recipientName: instapayName } : {}),
-            instructionsAr: "افتح تطبيق إنستاباي، حول المبلغ المطلوب بدقة لعنوان الدفع اللحظي، ثم التقط صورة للإيصال وارفعها.",
-            instructionsEn: "Open your InstaPay app, transfer the exact amount to the IPA address, and upload the transfer receipt screenshot."
-        };
+        if (saved.vodafoneNumber) {
+            accounts.vodafone_cash = {
+                method: "vodafone_cash",
+                titleAr: "فودافون كاش (Vodafone Cash)",
+                titleEn: "Vodafone Cash Wallet",
+                walletNumber: saved.vodafoneNumber,
+                ...(saved.vodafoneName ? { recipientName: saved.vodafoneName } : {}),
+                instructionsAr: "حول المبلغ المطلوب إلى رقم المحفظة عبر تطبيق أنا فودافون أو كود *9#، ثم ارفع صورة الإيصال.",
+                instructionsEn: "Transfer the exact amount to our wallet via Ana Vodafone or *9#, then upload the receipt screenshot."
+            };
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: accounts,
+            accounts
+        });
+    } catch (error) {
+        return next(error);
     }
-
-    if (vodafoneNumber) {
-        accounts.vodafone_cash = {
-            method: "vodafone_cash",
-            titleAr: "فودافون كاش (Vodafone Cash)",
-            titleEn: "Vodafone Cash Wallet",
-            walletNumber: vodafoneNumber,
-            ...(vodafoneName ? { recipientName: vodafoneName } : {}),
-            instructionsAr: "حول المبلغ المطلوب إلى رقم المحفظة عبر تطبيق أنا فودافون أو كود *9#، ثم ارفع صورة الإيصال.",
-            instructionsEn: "Transfer the exact amount to our wallet via Ana Vodafone or *9#, then upload the receipt screenshot."
-        };
-    }
-
-    return res.status(200).json({
-        success: true,
-        data: accounts,
-        accounts
-    });
 };
 // @desc Buy tickets and/or packages
 // @route POST /api/buying

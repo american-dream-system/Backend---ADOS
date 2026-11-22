@@ -13,6 +13,10 @@ const contactInfoSchema = new mongoose.Schema(
         addressEn: { type: String, default: "" },
         addressAr: { type: String, default: "" },
         mapUrl: { type: String, default: "" },
+        facebookUrl: { type: String, default: "" },
+        instagramUrl: { type: String, default: "" },
+        youtubeUrl: { type: String, default: "" },
+        tiktokUrl: { type: String, default: "" },
     },
     { timestamps: true }
 );

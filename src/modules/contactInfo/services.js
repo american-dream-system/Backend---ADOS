@@ -1,6 +1,7 @@
 const ContactInfo = require("./model");
 
-const FIELDS = ["phone", "whatsapp", "hotline", "hoursEn", "hoursAr", "addressEn", "addressAr", "mapUrl"];
+const FIELDS = ["phone", "whatsapp", "hotline", "hoursEn", "hoursAr", "addressEn", "addressAr", "mapUrl", "facebookUrl", "instagramUrl", "youtubeUrl", "tiktokUrl"];
+const URL_FIELDS = ["mapUrl", "facebookUrl", "instagramUrl", "youtubeUrl", "tiktokUrl"];
 const PHONE_FIELDS = ["phone", "whatsapp", "hotline"];
 const TEXT_MAX = { hoursEn: 300, hoursAr: 300, addressEn: 300, addressAr: 300 };
 
@@ -51,8 +52,8 @@ const setContactInfo = async (req, res, next) => {
             if (PHONE_FIELDS.includes(f) && v && !/^[+()\d][\d\s()+-]{2,29}$/.test(v)) {
                 return res.status(400).json({ success: false, message: `${f} must be a phone number (digits, +, spaces, - and brackets)` });
             }
-            if (f === "mapUrl" && v && !/^https?:\/\/[^\s]{3,480}$/i.test(v)) {
-                return res.status(400).json({ success: false, message: "mapUrl must be a link starting with http:// or https://" });
+            if (URL_FIELDS.includes(f) && v && !/^https?:\/\/[^\s]{3,480}$/i.test(v)) {
+                return res.status(400).json({ success: false, message: `${f} must be a link starting with http:// or https://` });
             }
             if (TEXT_MAX[f] && v.length > TEXT_MAX[f]) {
                 return res.status(400).json({ success: false, message: `${f} can be up to ${TEXT_MAX[f]} characters` });

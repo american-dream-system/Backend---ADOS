@@ -30,6 +30,7 @@ const playzoneHomeRoutes = require("./src/modules/playzoneHome/routes");
 const restaurantHomeRoutes = require("./src/modules/restaurantHome/routes");
 const eventsHomeRoutes = require("./src/modules/eventsHome/routes");
 const contactInfoRoutes = require("./src/modules/contactInfo/routes");
+const paymentAccountsRoutes = require("./src/modules/paymentAccounts/routes");
 const restaurantTablesRoutes = require("./src/modules/restaurantTables/routes");
 const morgan = require("morgan");
 const path = require("path");
@@ -90,7 +91,7 @@ app.use(
         "/api/media", "/api/packages", "/api/packges", "/api/tickets",
         "/api/menu", "/api/products", "/api/playzone-home", "/api/restaurant-home", "/api/events-home", "/api/contact-info", "/api/restaurant-tables", "/api/loyalty", "/api/points",
         "/api/trips/offers", "/api/trips/packages", "/api/events/spaces", "/api/events/packages",
-        "/api/buying/payment-accounts", "/api/orders/payment-accounts",
+        "/api/buying/payment-accounts", "/api/orders/payment-accounts", "/api/payment-accounts",
     ],
     publicCache()
 );
@@ -120,6 +121,7 @@ app.use("/api/playzone-home", playzoneHomeRoutes);
 app.use("/api/restaurant-home", restaurantHomeRoutes);
 app.use("/api/events-home", eventsHomeRoutes);
 app.use("/api/contact-info", contactInfoRoutes);
+app.use("/api/payment-accounts", paymentAccountsRoutes);
 app.use("/api/restaurant-tables", restaurantTablesRoutes);
 
 // Not found route

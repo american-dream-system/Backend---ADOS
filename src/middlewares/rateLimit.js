@@ -21,7 +21,7 @@ const rateLimit = ({ windowMs = 10 * 60 * 1000, max = 5, keyOf = (req) => req.ip
             res.set("Retry-After", String(retry));
             return res.status(429).json({
                 success: false,
-                message: message || "Too many requests. Please try again later.",
+                message: typeof message === "function" ? message(req) : message || "Too many requests. Please try again later.",
             });
         }
         list.push(now);

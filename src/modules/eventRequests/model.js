@@ -22,6 +22,8 @@ const eventRequestSchema = new mongoose.Schema(
     {
         bookingCode: { type: String, unique: true, required: true },
         kind: { type: String, enum: ["birthday", "family", "meeting"], required: true },
+        // The signed-in customer, when there was one (requests are also matched to a customer by phone)
+        guest: { type: mongoose.Schema.Types.ObjectId, ref: "Guest", default: null },
         status: {
             type: String,
             enum: ["pending", "confirmed", "completed", "cancelled", "rejected"],
@@ -56,4 +58,12 @@ const eventRequestSchema = new mongoose.Schema(
 
 eventRequestSchema.index({ status: 1, createdAt: -1 });
 
-module.exports = mongoose.model("EventRequest", eventRequestSchema);
+const EventRequest = mongoose.model("EventRequest", eventRequestSchema);
+
+// Phones are stored in the local form (01XXXXXXXXX) so a customer is found whichever form they typed (+20..., 20..., 01...)
+EventRequest.normalizePhone = (value) => {
+    const digits = String(value || "").replace(/[^\d+]/g, "");
+    return digits.replace(/^\+?20(?=1[0125]\d{8}$)/, "0");
+};
+
+module.exports = EventRequest;

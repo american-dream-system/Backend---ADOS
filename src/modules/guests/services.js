@@ -4,6 +4,7 @@ const buyingModel = require("../buying/model");
 const tripModel = require("../trips/model");
 const eventModel = require("../events/model");
 const bookingTableModel = require("../bookingTable/model");
+const eventRequestModel = require("../eventRequests/model");
 const menuOrderModel = require("../menu/orderModel");
 
 // ==========================================
@@ -133,6 +134,7 @@ const getGuestFullHistory = async (req, res, next) => {
         const eventFilter = [];
         const tableFilter = [];
         const orderFilter = [];
+        const requestFilter = [];
 
         if (guestId) {
             buyingFilter.push({ guest: guestId });
@@ -140,6 +142,7 @@ const getGuestFullHistory = async (req, res, next) => {
             eventFilter.push({ guest: guestId });
             tableFilter.push({ guest: guestId });
             orderFilter.push({ guest: guestId }, { user: guestId });
+            requestFilter.push({ guest: guestId });
         }
 
         if (guestPhone) {
@@ -148,6 +151,7 @@ const getGuestFullHistory = async (req, res, next) => {
             eventFilter.push({ contactPhone: guestPhone });
             tableFilter.push({ guestPhone: guestPhone });
             orderFilter.push({ customerPhone: guestPhone });
+            requestFilter.push({ customerPhone: eventRequestModel.normalizePhone(guestPhone) });
         }
 
         // If no valid identifier exists to search collections
@@ -159,7 +163,7 @@ const getGuestFullHistory = async (req, res, next) => {
         }
 
         // Fetch all 5 modules in parallel
-        const [purchases, trips, events, tables, menuOrders] = await Promise.all([
+        const [purchases, trips, events, tables, menuOrders, eventRequests] = await Promise.all([
             buyingModel.find({ $or: buyingFilter })
                 .populate("tickets.ticket")
                 .populate("packages.package")
@@ -176,11 +180,13 @@ const getGuestFullHistory = async (req, res, next) => {
                 .lean(),
             menuOrderModel.find({ $or: orderFilter })
                 .sort({ createdAt: -1 })
-                .lean()
+                .lean(),
+            // Booking requests from the Birthday, Family and Meetings pages (never payable: shown here with code and status)
+            requestFilter.length ? eventRequestModel.find({ $or: requestFilter }).sort({ createdAt: -1 }).lean() : []
         ]);
 
         // Check if guest or any transaction exists
-        if (!guest && purchases.length === 0 && trips.length === 0 && events.length === 0 && tables.length === 0 && menuOrders.length === 0) {
+        if (!guest && purchases.length === 0 && trips.length === 0 && events.length === 0 && tables.length === 0 && menuOrders.length === 0 && eventRequests.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: "لم يتم العثور على أي بيانات أو معاملات مسجلة لهذا الضيف أو رقم الهاتف"
@@ -323,6 +329,47 @@ const getGuestFullHistory = async (req, res, next) => {
             });
         });
 
+        // 3b. Event booking requests (Birthday / Family / Meetings): code and status as the server holds them
+        const REQUEST_KINDS = {
+            birthday: ["طلب حفل عيد ميلاد", "Birthday party request"],
+            family: ["طلب مناسبة عائلية", "Family event request"],
+            meeting: ["طلب اجتماع / فعالية", "Meeting / event request"],
+        };
+        const REQUEST_STATUS = {
+            pending: ["قيد الانتظار", "Pending"],
+            confirmed: ["مؤكد", "Confirmed"],
+            completed: ["مكتمل", "Completed"],
+            cancelled: ["ملغي", "Cancelled"],
+            rejected: ["مرفوض", "Rejected"],
+        };
+        eventRequests.forEach(r => {
+            const kind = REQUEST_KINDS[r.kind] || REQUEST_KINDS.birthday;
+            const st = REQUEST_STATUS[r.status] || REQUEST_STATUS.pending;
+            const day = r.eventDate ? new Date(r.eventDate).toISOString().slice(0, 10) : "";
+            timeline.push({
+                id: r._id,
+                category: "events",
+                categoryAr: kind[0],
+                categoryEn: kind[1],
+                code: r.bookingCode,
+                date: r.createdAt,
+                eventDate: r.eventDate,
+                amount: r.priceMode === "on_request" ? 0 : Number(r.totalPrice) || 0,
+                isRequest: true,
+                priceOnRequest: r.priceMode === "on_request",
+                currency: "EGP",
+                status: r.status,
+                paymentMethod: "N/A",
+                paymentStatus: "N/A",
+                title: `${kind[0]} ${r.bookingCode} - ${st[0]}`,
+                titleAr: `${kind[0]} ${r.bookingCode} - ${st[0]}`,
+                titleEn: `${kind[1]} ${r.bookingCode} - ${st[1]}`,
+                description: `${day}${r.guestCount ? ` | ${r.guestCount} فرد` : ""}${r.status === "rejected" && r.rejectionReason ? ` | ${r.rejectionReason}` : ""}`,
+                descriptionEn: `${day}${r.guestCount ? ` | ${r.guestCount} guests` : ""}${r.status === "rejected" && r.rejectionReason ? ` | ${r.rejectionReason}` : ""}`,
+                raw: r
+            });
+        });
+
         // 4. Restaurant Table Bookings
         tables.forEach(tbl => {
             timeline.push({
@@ -388,7 +435,7 @@ const getGuestFullHistory = async (req, res, next) => {
                 totalAmount: Number(totalTripsAmount.toFixed(2))
             },
             events: {
-                count: events.length,
+                count: events.length + eventRequests.length,
                 totalAmount: Number(totalEventsAmount.toFixed(2))
             },
             tableReservations: {
@@ -413,6 +460,7 @@ const getGuestFullHistory = async (req, res, next) => {
                 purchases,
                 trips,
                 events,
+                eventRequests,
                 tableReservations: tables,
                 restaurantOrders: menuOrders
             }

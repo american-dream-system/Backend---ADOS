@@ -2,6 +2,8 @@ const EventRequest = require("./model");
 const Media = require("../media/model");
 const EventsHome = require("../eventsHome/model");
 const { createAndEmitNotification } = require("../notifications/services");
+const { verifyToken } = require("../../utils/token");
+const Guest = require("../guests/model");
 
 const STATUSES = ["pending", "confirmed", "completed", "cancelled", "rejected"];
 const KINDS = ["birthday", "family", "meeting"];
@@ -42,11 +44,31 @@ const adminPackages = async (occasion) => {
         .filter((p) => p.id && Number.isFinite(p.price) && p.price > 0);
 };
 
-// Midweek = Sat to Wed, Weekend = Thu and Fri (the same split the Per Person card shows)
+// Midweek = Sat to Wed, Weekend = Thu and Fri (the same split the Per Person card shows).
+// The weekday is read from the calendar date itself (Date.UTC of Y-M-D, then getUTCDay), never from a local time, so it
+// is the weekday of that date in Egypt on any server or browser time zone.
 const tierOfDate = (dateStr) => {
     const [y, m, d] = dateStr.split("-").map(Number);
     const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 Sun ... 4 Thu, 5 Fri
     return dow === 4 || dow === 5 ? "weekend" : "midweek";
+};
+
+// Today's date in Egypt (Africa/Cairo) as YYYY-MM-DD. "Not in the past" is judged on the Egypt calendar day, so the
+// server's own time zone (UTC on the VPS) can never make an Egypt date look like yesterday or tomorrow.
+const egyptToday = () =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+
+// The signed-in customer, if the request carries a valid token (the endpoint stays public)
+const optionalGuest = async (req) => {
+    try {
+        const h = req.headers.authorization || "";
+        if (!h.startsWith("Bearer ")) return null;
+        const decoded = verifyToken(h.split(" ")[1]);
+        const g = decoded && decoded.id ? await Guest.findById(decoded.id).select("_id").lean() : null;
+        return g ? g._id : null;
+    } catch (e) {
+        return null;
+    }
 };
 
 const toDateOnly = (value) => {
@@ -66,14 +88,14 @@ const createEventRequest = async (req, res, next) => {
         const guests = b.guestCount === undefined || b.guestCount === null || b.guestCount === "" ? null : Number(b.guestCount);
         const lang = b.lang === "en" ? "en" : "ar";
 
-        // Event date can't be in the past (one day of slack for time zones)
-        const yesterday = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10);
-        if (!dateStr || dateStr < yesterday) throw fail(400, "Choose today or a later date for the event");
+        // The event date is a calendar date (YYYY-MM-DD) in Egypt; it can't be before today in Egypt
+        if (!dateStr || dateStr < egyptToday()) throw fail(400, "Choose today or a later date for the event");
 
         const doc = {
             kind,
             customerName: String(b.customerName).trim(),
-            customerPhone: String(b.customerPhone).replace(/[\s-]/g, ""),
+            customerPhone: EventRequest.normalizePhone(b.customerPhone),
+            guest: await optionalGuest(req),
             customerEmail: String(b.customerEmail || "").trim(),
             eventDate: new Date(`${dateStr}T00:00:00.000Z`),
             timeText: String(b.time || "").trim(),
@@ -203,4 +225,4 @@ const updateEventRequestStatus = async (req, res, next) => {
     }
 };
 
-module.exports = { createEventRequest, getEventRequests, updateEventRequestStatus };
+module.exports = { createEventRequest, getEventRequests, updateEventRequestStatus, tierOfDate, egyptToday };

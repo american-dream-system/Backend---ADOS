@@ -20,24 +20,25 @@ const {
 } = require("./validator");
 
 const { protectGuest } = require("../../middlewares/authMiddleware");
+const L = require("../../middlewares/rateLimits");
 
 // Sign up
-router.post("/signup", signupValidator, signup);
+router.post("/signup", L.signupPerIp, signupValidator, signup);
 
 // Login
-router.post("/login", loginValidator, login);
+router.post("/login", L.loginPerIp, L.loginPerAccount, loginValidator, login);
 
 // Forget Password / Send Reset Code
-router.post("/forgot-password", forgetPasswordValidator, forgetPassword);
-router.post("/forgetPassword", forgetPasswordValidator, forgetPassword);
+router.post("/forgot-password", L.forgotPerIp, L.forgotPerAccount, forgetPasswordValidator, forgetPassword);
+router.post("/forgetPassword", L.forgotPerIp, L.forgotPerAccount, forgetPasswordValidator, forgetPassword);
 
 // Verify Reset Code
-router.post("/verify-code", verifyResetCodeValidator, verifyResetCode);
-router.post("/verifyResetCode", verifyResetCodeValidator, verifyResetCode);
+router.post("/verify-code", L.resetPerIp, L.resetPerAccount, verifyResetCodeValidator, verifyResetCode);
+router.post("/verifyResetCode", L.resetPerIp, L.resetPerAccount, verifyResetCodeValidator, verifyResetCode);
 
 // Reset Password
-router.post("/reset-password", resetPasswordValidator, resetPassword);
-router.post("/resetPassword", resetPasswordValidator, resetPassword);
+router.post("/reset-password", L.resetPerIp, L.resetPerAccount, resetPasswordValidator, resetPassword);
+router.post("/resetPassword", L.resetPerIp, L.resetPerAccount, resetPasswordValidator, resetPassword);
 
 // Refresh Token
 router.post("/refresh-token", refreshTokenService);

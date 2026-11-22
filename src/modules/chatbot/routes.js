@@ -18,6 +18,7 @@ const {
 
 const { protectGuest } = require("../../middlewares/authMiddleware");
 const { verifyToken } = require("../../utils/token");
+const { chatbotPerIp } = require("../../middlewares/rateLimits");
 const guestModel = require("../guests/model");
 
 // Optional Guest Auth: extracts guest if JWT Bearer token is provided
@@ -53,11 +54,11 @@ router.get("/health", healthCheck);
 router.get("/tools", getAvailableTools);
 
 // Send message to chatbot (with tool execution)
-router.post("/message", optionalGuestAuth, sendMessageValidator, sendMessage);
-router.post("/", optionalGuestAuth, sendMessageValidator, sendMessage);
+router.post("/message", chatbotPerIp, optionalGuestAuth, sendMessageValidator, sendMessage);
+router.post("/", chatbotPerIp, optionalGuestAuth, sendMessageValidator, sendMessage);
 
 // Session management
-router.post("/session", optionalGuestAuth, createSessionValidator, createSession);
+router.post("/session", chatbotPerIp, optionalGuestAuth, createSessionValidator, createSession);
 router.get("/sessions", protectGuest, listSessions);
 router.get("/session/:sessionId", optionalGuestAuth, sessionIdParamValidator, getSessionHistory);
 router.delete("/session/:sessionId", sessionIdParamValidator, clearSession);

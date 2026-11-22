@@ -3,6 +3,7 @@ const router = express.Router();
 const { adminOnly } = require("../../middlewares/authMiddleware");
 const { ownRecord, byId, byCode, ownGuestParam, ownGuestTarget } = require("../../middlewares/ownership");
 const BookingTable = require("./model");
+const { tableBookingPerIp } = require("../../middlewares/rateLimits");
 const own = { guestFields: ["guest"], phoneFields: ["guestPhone"] };
 const {
     createBookingTable,
@@ -27,7 +28,7 @@ const {
 } = require("./validator");
 
 // Create table booking
-router.post("/", createBookingTableValidator, createBookingTable);
+router.post("/", tableBookingPerIp, createBookingTableValidator, createBookingTable);
 
 // Get all bookings (with pagination & filters)
 router.get("/", adminOnly, getAllBookingTables);

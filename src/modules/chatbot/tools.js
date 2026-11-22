@@ -235,6 +235,7 @@ const generateRandomCode = (prefix) => {
 };
 
 // Dispatch and execute tool logic
+const { currentPriceOf } = require("../../utils/currentPrice");
 const executeChatbotTool = async (name, args = {}, context = {}) => {
     try {
         switch (name) {
@@ -243,10 +244,8 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
                 if (args.page) query.page = args.page;
                 if (args.priceType) query.priceType = args.priceType;
                 if (args.maxPrice) {
-                    query.$or = [
-                        { priceAfterDiscount: { $lte: args.maxPrice } },
-                        { price: { $lte: args.maxPrice } }
-                    ];
+                    // the current price: the discounted price when there is a real one, else the price
+                    query.$expr = { $lte: [{ $cond: [{ $gt: ["$priceAfterDiscount", 0] }, "$priceAfterDiscount", "$price"] }, Number(args.maxPrice)] };
                 }
 
                 const tickets = blankLegacyAgeIn(await Ticket.find(query).limit(10).lean());
@@ -258,8 +257,9 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
                         title: t.title,
                         description: t.description,
                         page: t.page,
-                        price: t.price,
-                        discountPrice: t.priceAfterDiscount,
+                        // price = what is charged; oldPrice only when it is higher than the current price
+                        price: currentPriceOf(t),
+                        oldPrice: Number(t.price) > currentPriceOf(t) ? t.price : null,
                         priceType: t.priceType,
                         hourPrice: t.hourPrice,
                         gamesPrice: t.gamesPrice,
@@ -304,8 +304,8 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
                         id: p._id,
                         title: p.title,
                         description: p.description,
-                        price: p.price,
-                        discountPrice: p.priceAfterDiscount,
+                        price: currentPriceOf(p),
+                        oldPrice: Number(p.price) > currentPriceOf(p) ? p.price : null,
                         age: p.age,
                         points: p.pointsGets
                     }))

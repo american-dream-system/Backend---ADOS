@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { blankLegacyAge, applyLegacyAge } = require("../../utils/legacyAge");
+const { applyCurrentPrice } = require("../../utils/currentPrice");
 
 const packageSchema = new mongoose.Schema({
     title: {
@@ -101,6 +102,7 @@ const packageSchema = new mongoose.Schema({
 }, { timestamps: true, strict: false });
 
 applyLegacyAge(packageSchema);
+applyCurrentPrice(packageSchema);
 
 const packageModel = mongoose.model("Package", packageSchema);
 packageModel.blankLegacyAge = blankLegacyAge;

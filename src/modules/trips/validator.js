@@ -1,5 +1,6 @@
 const { check } = require("express-validator");
 const validatorMiddleware = require("../../middlewares/validatorMiddlewar");
+const TripBooking = require("./model");
 
 // Validator for creating quote / booking
 const createTripQuoteValidator = [
@@ -20,6 +21,11 @@ const createTripQuoteValidator = [
     check("studentsCount")
         .optional()
         .isInt({ min: 1 }).withMessage("عدد الطلاب يجب أن يكون رقماً صحيحاً موجباً"),
+    check("orgType")
+        .optional()
+        .isIn(TripBooking.ORG_TYPES)
+        .withMessage(`نوع الجهة غير صالح. القيم المقبولة: ${TripBooking.ORG_TYPES.slice(0, 5).join(", ")}`),
+
     check("shift")
         .optional()
         .isIn(["morning", "evening"]).withMessage("الفترة يجب أن تكون صباحية (morning) أو مسائية (evening)"),

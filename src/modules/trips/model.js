@@ -1,5 +1,8 @@
 const mongoose = require("mongoose");
 
+// The one list of organization types a trip booking accepts (English values, and their Arabic names)
+const ORG_TYPES = ["School", "Nursery", "Daycare", "Youth Club", "Other", "مدرسة", "حضانة", "مركز رعاية", "نادي شباب", "أخرى"];
+
 const tripBookingSchema = new mongoose.Schema({
     bookingCode: {
         type: String,
@@ -20,7 +23,7 @@ const tripBookingSchema = new mongoose.Schema({
     },
     orgType: {
         type: String,
-        enum: ["School", "Nursery", "Daycare", "Youth Club", "Other", "مدرسة", "حضانة", "مركز رعاية", "نادي شباب", "أخرى"],
+        enum: ORG_TYPES,
         default: "School"
     },
     contactName: {
@@ -120,4 +123,5 @@ tripBookingSchema.index({ tripDate: 1, shift: 1 });
 tripBookingSchema.index({ phone: 1 });
 
 const TripBooking = mongoose.model("TripBooking", tripBookingSchema);
+TripBooking.ORG_TYPES = ORG_TYPES;
 module.exports = TripBooking;

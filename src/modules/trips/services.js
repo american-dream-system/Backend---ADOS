@@ -247,6 +247,10 @@ const createTripQuote = async (req, res) => {
         });
     } catch (error) {
         if (sendOrderError(res, error)) return;
+        // A value the booking model refuses (for example an unknown organization type) is a 400, not a 500
+        if (error.name === "ValidationError") {
+            return res.status(400).json({ success: false, message: Object.values(error.errors || {}).map((e) => e.message).join(" / ") || error.message });
+        }
         return res.status(500).json({ success: false, message: error.message });
     }
 };

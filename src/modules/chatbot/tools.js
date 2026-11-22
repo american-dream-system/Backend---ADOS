@@ -6,6 +6,7 @@ const MenuOrder = require("../menu/orderModel");
 const BookingTable = require("../bookingTable/model");
 const BuyingOrder = require("../buying/model");
 const Guest = require("../guests/model");
+const EventsHome = require("../eventsHome/model");
 
 // Gemini Function Declarations (Tools)
 const chatbotToolDeclarations = [
@@ -204,6 +205,11 @@ const chatbotToolDeclarations = [
         }
     },
     {
+        name: "getEventPrices",
+        description: "أسعار حجز أعياد الميلاد بالفرد (Midweek السبت-الأربعاء و Weekend الخميس-الجمعة) وما يشمله كل سعر، كما حددتها الإدارة. إذا لم يُحدد سعر تُرجع الأداة ذلك ولا يجب ذكر أي سعر.",
+        parameters: { type: "OBJECT", properties: {} }
+    },
+    {
         name: "getLoyaltyPointsInfo",
         description: "الاستعلام عن نظام نقاط المكافآت والولاء في أمريكان دريم، كم نقطة تساوي 1 جنيه، ومعدل اكتساب النقاط عند الشراء، أو حساب قيمة نقاط العميل بالجنيه.",
         parameters: {
@@ -260,6 +266,24 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
                         age: t.age,
                         points: t.pointsGets
                     }))
+                };
+            }
+
+            case "getEventPrices": {
+                const doc = await EventsHome.findOne({ key: "events-home" }).lean();
+                const pp = (doc && doc.birthdayPerPerson) || {};
+                const tier = (t) => {
+                    const price = t && Number.isFinite(t.price) && t.price > 0 ? t.price : null;
+                    return price === null
+                        ? { priceSet: false }
+                        : { priceSet: true, pricePerGuestEgp: price, includesEn: t.includesEn || [], includesAr: t.includesAr || [] };
+                };
+                return {
+                    success: true,
+                    guestsRange: "1 to 25 guests",
+                    midweek: tier(pp.midweek),
+                    weekend: tier(pp.weekend),
+                    note: "Where priceSet is false there is no price: tell the customer the price is not available right now."
                 };
             }
 

@@ -616,38 +616,38 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
             }
 
             case "getParkInfo": {
-                const info = {
-                    parkName: "أمريكان دريم (American Dream Kids Area & Restaurant)",
-                    location: "القاهرة - مصر، مجمع الترفيه والمطاعم",
-                    workingHours: "يومياً من 10:00 صباحاً حتى 12:00 منتصف الليل (أيام العطلات حتى 1:00 صباحاً)",
-                    zones: [
-                        { name: "funZone", title: "منطقة المرح", desc: "ألعاب حركية ومطاطية وترامبولين للأطفال" },
-                        { name: "kidsArea", title: "منطقة الأطفال الصغار", desc: "ألعاب آمنة وتفاعلية للأطفال دون 6 سنوات" },
-                        { name: "challengeZone", title: "منطقة التحدي", desc: "ألعاب ذكاء وتحديات وتسلق" },
-                        { name: "adventureZone", title: "منطقة المغامرات", desc: "متاهات وسيارات سباق وتجارب شيقة" }
-                    ],
-                    restaurant: {
-                        areas: ["Family 1", "Family 2", "Family 3", "Roof", "Indoor", "Relaxation Area", "Outdoor Family Area", "Outdoor Smoking Area", "Indoor Quiet Area", "VIP Area"],
-                        cuisines: ["برجر أمريكي فاخر", "بيتزا إيطالية", "مشويات", "وجبات أطفال", "عصائر وحلويات ومشروبات ساخنة"]
-                    },
-                    contact: {
-                        phone: "01000000000 / 01100000000",
-                        whatsapp: "01000000000",
-                        email: "support@americandream.com"
-                    },
-                    safetyRules: [
-                        "ارتداء الجوارب الخاصة في منطقة الألعاب إلزامي",
-                        "ممنوع إدخال المأكولات والمشروبات من خارج المجمع",
-                        "يجب وجود مرافق للأطفال أقل من 4 سنوات"
-                    ]
+                // Hours, address and contact details come ONLY from the admin's Contact Info page. A value that is not
+                // set is reported as not available: the bot must never say a number, hours or an address of its own.
+                const { readContactInfo } = require("../contactInfo/services");
+                const c = await readContactInfo();
+                const pick = (en, ar) => ({ en: c[en] || null, ar: c[ar] || null });
+                const hours = pick("hoursEn", "hoursAr");
+                const address = pick("addressEn", "addressAr");
+                const contact = { phone: c.phone || null, whatsapp: c.whatsapp || null, hotline: c.hotline || null, map: c.mapUrl || null };
+                const hasHours = !!(hours.en || hours.ar);
+                const hasAddress = !!(address.en || address.ar);
+                const hasContact = !!(contact.phone || contact.whatsapp || contact.hotline);
+                const rules = [
+                    "ارتداء الجوارب الخاصة في منطقة الألعاب إلزامي",
+                    "ممنوع إدخال المأكولات والمشروبات من خارج المجمع",
+                    "يجب وجود مرافق للأطفال أقل من 4 سنوات"
+                ];
+                const missing = "Not available: tell the customer this information is not available right now. Do not give any value of your own.";
+
+                if (args.topic === "hours") return { success: true, available: hasHours, hours: hasHours ? hours : null, note: hasHours ? undefined : missing };
+                if (args.topic === "location") return { success: true, available: hasAddress, address: hasAddress ? address : null, map: contact.map, note: hasAddress ? undefined : missing };
+                if (args.topic === "contact") return { success: true, available: hasContact, contact: hasContact ? contact : null, note: hasContact ? undefined : missing };
+                if (args.topic === "rules") return { success: true, rules };
+
+                return {
+                    success: true,
+                    parkName: "American Dream",
+                    hours: hasHours ? hours : null,
+                    address: hasAddress ? address : null,
+                    contact: hasContact ? contact : null,
+                    rules,
+                    note: "Any field that is null is not available: say so, never invent it."
                 };
-
-                if (args.topic === "hours") return { success: true, hours: info.workingHours };
-                if (args.topic === "location") return { success: true, location: info.location };
-                if (args.topic === "contact") return { success: true, contact: info.contact };
-                if (args.topic === "rules") return { success: true, rules: info.safetyRules };
-
-                return { success: true, ...info };
             }
 
             case "getLoyaltyPointsInfo": {

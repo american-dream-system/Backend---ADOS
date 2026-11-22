@@ -46,16 +46,16 @@ module.exports = {
     // Sign in: 30 tries per 15 minutes per visitor address, and 8 FAILED tries per 15 minutes per account
     loginPerIp: rateLimit({ windowMs: 15 * MIN, max: 30, message: tooManyLogin }),
     loginPerAccount: rateLimit({ windowMs: 15 * MIN, max: 8, keyOf: accountKey, onlyFailures: true, message: tooManyLogin }),
-    // Sign up: 10 per hour per address
-    signupPerIp: rateLimit({ windowMs: HOUR, max: 10, message: tooMany }),
+    // Sign up: 30 per hour per address (customers share the venue's Wi-Fi)
+    signupPerIp: rateLimit({ windowMs: HOUR, max: 30, message: tooMany }),
     // Forgot password: 5 per hour per address, 3 per hour per account
     forgotPerIp: rateLimit({ windowMs: HOUR, max: 5, message: tooMany }),
     forgotPerAccount: rateLimit({ windowMs: HOUR, max: 3, keyOf: accountKey, message: tooMany }),
     // Reset code check and new password: 20 per hour per address, 8 FAILED tries per hour per account (6-digit codes)
     resetPerIp: rateLimit({ windowMs: HOUR, max: 20, message: tooMany }),
     resetPerAccount: rateLimit({ windowMs: HOUR, max: 8, keyOf: accountKey, onlyFailures: true, message: tooMany }),
-    // Table bookings: 15 per hour per address (an admin booking for guests is never limited)
-    tableBookingPerIp: rateLimit({ windowMs: HOUR, max: 15, skip: skipAdmin, message: tooManyRequests }),
+    // Table bookings: 40 per hour per address (shared venue Wi-Fi; an admin booking for guests is never limited)
+    tableBookingPerIp: rateLimit({ windowMs: HOUR, max: 40, skip: skipAdmin, message: tooManyRequests }),
     // Chatbot: 40 messages per 10 minutes per address
     chatbotPerIp: rateLimit({ windowMs: 10 * MIN, max: 40, skip: skipAdmin, message: tooManyRequests }),
 };

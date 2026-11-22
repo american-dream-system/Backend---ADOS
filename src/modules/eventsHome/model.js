@@ -6,6 +6,14 @@ const mongoose = require("mongoose");
 // placeholder (there are no built-in images).
 const galleryItemSchema = new mongoose.Schema({ image: { type: String, required: true } }, { _id: true });
 
+// Birthday Parties "Per Person Booking" card: one per-guest price (EGP) for Midweek and one for Weekend, each with
+// its own "Price Includes" lines in English and Arabic. null price / empty list = not set (no built-in values).
+const perPersonTierSchema = {
+    price: { type: Number, default: null },
+    includesEn: { type: [String], default: [] },
+    includesAr: { type: [String], default: [] },
+};
+
 const eventsHomeSchema = new mongoose.Schema(
     {
         key: { type: String, default: "events-home", unique: true },
@@ -16,6 +24,10 @@ const eventsHomeSchema = new mongoose.Schema(
             meetings: { type: String, default: "" },
         },
         gallery: { type: [galleryItemSchema], default: [] },
+        birthdayPerPerson: {
+            midweek: { type: new mongoose.Schema(perPersonTierSchema, { _id: false }), default: () => ({}) },
+            weekend: { type: new mongoose.Schema(perPersonTierSchema, { _id: false }), default: () => ({}) },
+        },
     },
     { timestamps: true }
 );

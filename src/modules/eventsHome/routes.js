@@ -4,6 +4,7 @@ const { protectGuest, allowedTo } = require("../../middlewares/authMiddleware");
 const { uploadSingleImage, arrayOfImages, imageProcessing } = require("../../middlewares/uploadImages");
 const {
     getEventsHome,
+    setBirthdayPerPerson,
     setImage,
     addGalleryImages,
     replaceGalleryImage,
@@ -26,6 +27,9 @@ router.get("/", getEventsHome);
 // Admin only
 router.put("/images/:slot", adminOnly, uploadSingleImage("image"), nameFile, imageProcessing, setImage);
 router.delete("/images/:slot", adminOnly, setImage);
+
+// Admin only: Birthday Parties per-person prices and include lists
+router.put("/birthday-per-person", adminOnly, setBirthdayPerPerson);
 
 // Admin only: gallery section (fixed paths first, then the per-image routes)
 router.put("/gallery/order", adminOnly, reorderGallery);

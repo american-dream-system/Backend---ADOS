@@ -21,6 +21,16 @@ const getDoc = async () => {
 
 const imageUrl = mediaUrl;
 
+const TIERS = ["midweek", "weekend"];
+const MAX_INCLUDE_LINES = 20;
+const MAX_LINE_LENGTH = 120;
+
+const serializeTier = (t) => ({
+    price: t && Number.isFinite(t.price) && t.price > 0 ? t.price : null,
+    includesEn: (t && t.includesEn ? [...t.includesEn] : []).filter(Boolean),
+    includesAr: (t && t.includesAr ? [...t.includesAr] : []).filter(Boolean),
+});
+
 const serialize = (doc) => {
     const images = {};
     SLOTS.forEach((s) => {
@@ -29,6 +39,10 @@ const serialize = (doc) => {
     return {
         images,
         gallery: (doc.gallery || []).map((g) => ({ id: String(g._id), image: imageUrl(g.image) })),
+        birthdayPerPerson: {
+            midweek: serializeTier(doc.birthdayPerPerson && doc.birthdayPerPerson.midweek),
+            weekend: serializeTier(doc.birthdayPerPerson && doc.birthdayPerPerson.weekend),
+        },
     };
 };
 
@@ -160,8 +174,62 @@ const reorderGallery = async (req, res, next) => {
     }
 };
 
+// Validates one list of plain-text lines: trimmed, blanks dropped. Returns an array or null when invalid.
+const cleanLines = (list) => {
+    if (list === undefined || list === null) return [];
+    if (!Array.isArray(list)) return null;
+    const out = [];
+    for (const line of list) {
+        if (typeof line !== "string") return null;
+        const text = line.trim();
+        if (!text) continue;
+        if (text.length > MAX_LINE_LENGTH) return null;
+        out.push(text);
+    }
+    return out.length > MAX_INCLUDE_LINES ? null : out;
+};
+
+// @route PUT /api/events-home/birthday-per-person   (admin)
+// body: { midweek: { price, includesEn: [text], includesAr: [text] }, weekend: { ... } }  (price null/"" = not set)
+const setBirthdayPerPerson = async (req, res, next) => {
+    try {
+        const body = req.body || {};
+        const next_ = {};
+        for (const tier of TIERS) {
+            const t = body[tier];
+            if (!t || typeof t !== "object") {
+                return res.status(400).json({ success: false, message: `${tier} is required` });
+            }
+            let price = null;
+            if (t.price !== null && t.price !== undefined && String(t.price).trim() !== "") {
+                price = Number(t.price);
+                if (!Number.isFinite(price) || price <= 0 || price > 1000000) {
+                    return res.status(400).json({ success: false, message: `${tier} price must be a number above 0` });
+                }
+                price = Math.round(price * 100) / 100;
+            }
+            const includesEn = cleanLines(t.includesEn);
+            const includesAr = cleanLines(t.includesAr);
+            if (!includesEn || !includesAr) {
+                return res.status(400).json({
+                    success: false,
+                    message: `${tier}: include lines must be text (up to ${MAX_LINE_LENGTH} characters, at most ${MAX_INCLUDE_LINES} lines)`,
+                });
+            }
+            next_[tier] = { price, includesEn, includesAr };
+        }
+        const doc = await getDoc();
+        doc.birthdayPerPerson = next_;
+        await doc.save();
+        send(res, doc);
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getEventsHome,
+    setBirthdayPerPerson,
     setImage,
     addGalleryImages,
     replaceGalleryImage,

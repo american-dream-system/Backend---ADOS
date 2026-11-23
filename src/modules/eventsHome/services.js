@@ -2,8 +2,8 @@ const EventsHome = require("./model");
 const { normalizeImagePath } = require("../../utils/mediaPath");
 const { mediaUrl, removeMediaFile } = require("../../utils/mediaFiles");
 
-// hero + one cover per event type + one photo per Birthday Packages venue (ids match the three cards of the page: birthdays, occasions = family events, meetings)
-const SLOTS = ["hero", "birthdays", "occasions", "meetings", "venueIndoor", "venueRooftop", "venueOutdoor"];
+// hero + one cover per event type (ids match the three cards of the page: birthdays, occasions = family events, meetings)
+const SLOTS = ["hero", "birthdays", "occasions", "meetings"];
 const MAX_GALLERY = 24;
 
 const getDoc = async () => {

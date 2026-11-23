@@ -40,6 +40,7 @@ const adminPackages = async (occasion) => {
             nameAr: String((p && (p.nameAr || p.nameEn)) || "").trim(),
             nameEn: String((p && (p.nameEn || p.nameAr)) || "").trim(),
             price: Number(p && (p.basePrice !== undefined ? p.basePrice : p.price)),
+            venueId: String((p && p.venueId) || ""),
         }))
         .filter((p) => p.id && Number.isFinite(p.price) && p.price > 0);
 };
@@ -167,8 +168,11 @@ const createEventRequest = async (req, res, next) => {
             // The venue comes from the admin list; the guest count must fit its range
             const { familyVenues } = await eventsHomeLists();
             if (familyVenues.length) pickVenue(familyVenues, b.venueId, guests, doc);
-            const pkg = (await adminPackages("family")).find((p) => p.id === String(b.packageId || ""));
-            if (!pkg) throw fail(409, "This package is not available");
+            // Only a package of the chosen venue (or one tied to no venue) can be booked
+            const pkg = (await adminPackages("family")).find(
+                (p) => p.id === String(b.packageId || "") && (!familyVenues.length || !p.venueId || p.venueId === doc.venueId)
+            );
+            if (!pkg) throw fail(409, "This package is not available for the chosen venue");
             doc.priceMode = "package";
             doc.totalPrice = pkg.price;
             doc.snapshot = { packageId: pkg.id, packageNameAr: pkg.nameAr, packageNameEn: pkg.nameEn };

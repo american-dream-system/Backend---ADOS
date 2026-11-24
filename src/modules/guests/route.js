@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { adminOnly } = require("../../middlewares/authMiddleware");
+const { adminOnly, protectGuest } = require("../../middlewares/authMiddleware");
+const { qrScanPerAdmin, qrScanPerIp, qrMinePerAccount } = require("../../middlewares/rateLimits");
 const { ownGuestTarget } = require("../../middlewares/ownership");
 
 const {
@@ -10,7 +11,9 @@ const {
     updateGuest,
     deleteGuest,
     getGuestFullHistory,
-    getAllGuestsSummary
+    getAllGuestsSummary,
+    getMyQr,
+    scanGuestQr
 } = require("./services");
 
 const {
@@ -45,6 +48,10 @@ const protectAdminOrDashboard = async (req, res, next) => {
 // ==========================================
 // GUEST ADMIN DOSSIER & TRANSACTIONS HISTORY (Admin / Dashboard)
 // ==========================================
+
+// Own QR code (token only) and the staff scan lookup. Declared before "/:id" so the paths are not read as an id.
+router.get("/me/qr", protectGuest, qrMinePerAccount, getMyQr);
+router.post("/scan", qrScanPerIp, adminOnly, qrScanPerAdmin, scanGuestQr);
 
 // Aggregated summary of all guests for admin dashboard
 router.get("/summary", adminOnly, getAllGuestsSummary);

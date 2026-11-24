@@ -1,4 +1,6 @@
 const mongoose = require("mongoose");
+const crypto = require("crypto");
+const { egyptDateOf } = require("../../utils/egyptDate");
 const guestModel = require("./model");
 const buyingModel = require("../buying/model");
 const tripModel = require("../trips/model");
@@ -542,7 +544,96 @@ const getAllGuestsSummary = async (req, res, next) => {
     }
 };
 
+// ==========================================
+// GUEST QR (personal code shown on the profile, scanned by staff)
+// ==========================================
+
+const QR_SHAPE = /^[A-Za-z0-9_-]{32}$/;
+const newQrCode = () => crypto.randomBytes(24).toString("base64url"); // 32 characters, 192 random bits
+
+// @desc The signed-in guest's own QR code, created on first use (existing guests get theirs here too)
+// @route GET /api/guests/me/qr
+// @access Private (the token decides whose code it is; nothing in the request names a guest)
+const getMyQr = async (req, res, next) => {
+    try {
+        const me = await guestModel.findById(req.guest._id).select("qrCode name").lean();
+        if (!me) return res.status(404).json({ success: false, message: "Account not found" });
+        let code = me.qrCode;
+        for (let attempt = 0; !code && attempt < 5; attempt += 1) {
+            try {
+                // only fills a missing code, so two parallel requests end with the same stored value
+                await guestModel.updateOne({ _id: me._id, qrCode: { $exists: false } }, { $set: { qrCode: newQrCode() } });
+                const again = await guestModel.findById(me._id).select("qrCode").lean();
+                code = again && again.qrCode;
+            } catch (err) {
+                if (!(err && err.code === 11000)) throw err; // a (practically impossible) duplicate: draw again
+            }
+        }
+        if (!code) return res.status(500).json({ success: false, message: "Could not create the code" });
+        res.status(200).json({ success: true, data: { code, name: me.name } });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc Staff scan: who owns this code, and that guest's bookings and tickets for today (read only, marks nothing)
+// @route POST /api/guests/scan   body: { code }
+// @access Admin only, rate limited. An unknown or malformed code gets the same not-found answer, so the endpoint
+//         never reveals whether a guest exists.
+const scanGuestQr = async (req, res, next) => {
+    try {
+        const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+        const notFound = () => res.status(404).json({ success: false, message: "Code not found / الكود غير موجود" });
+        if (!QR_SHAPE.test(code)) return notFound();
+        const guest = await guestModel.findOne({ qrCode: code }).select("name phone email points").lean();
+        if (!guest) return notFound();
+
+        // "today" in Egypt time
+        const today = egyptDateOf();
+        const start = new Date(`${today}T00:00:00+02:00`);
+        const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 + 60 * 60 * 1000); // slack for summer time, trimmed below
+        const sameDay = (d) => d && egyptDateOf(new Date(d)) === today;
+
+        const [purchases, tables] = await Promise.all([
+            buyingModel.find({ $or: [{ guest: guest._id }, { guestPhone: guest.phone }], createdAt: { $gte: new Date(start.getTime() - 3600 * 1000), $lt: end } })
+                .select("orderCode status paymentMethod paymentStatus used totalPrice tickets packages createdAt").lean(),
+            bookingTableModel.find({ $or: [{ guest: guest._id }, { guestPhone: guest.phone }], date: { $gte: new Date(start.getTime() - 3600 * 1000), $lt: end } })
+                .select("bookingCode status date time area guests partySize").lean()
+        ]);
+
+        const tickets = purchases.filter((p) => sameDay(p.createdAt)).map((p) => ({
+            orderCode: p.orderCode,
+            status: p.status,
+            paymentMethod: p.paymentMethod,
+            paymentStatus: p.paymentStatus,
+            used: !!p.used,
+            total: p.totalPrice,
+            items: [
+                ...(p.tickets || []).map((t) => ({ title: t.title || t.name, quantity: t.quantity })),
+                ...(p.packages || []).map((k) => ({ title: k.title || k.name, quantity: k.quantity }))
+            ]
+        }));
+        const bookings = tables.filter((b) => sameDay(b.date)).map((b) => ({
+            bookingCode: b.bookingCode, status: b.status, time: b.time, area: b.area, people: b.guests || b.partySize
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: {
+                guest: { name: guest.name, phone: guest.phone, email: guest.email || "", points: guest.points || 0 },
+                today,
+                tickets,
+                bookings
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
+    getMyQr,
+    scanGuestQr,
     createGuest,
     getAllGuests,
     getGuestById,

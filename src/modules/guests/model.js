@@ -50,6 +50,13 @@ const guestSchema = new Schema({
     refreshToken: {
         type: String
     },
+    // The guest's personal QR: a random, unguessable code made on the server the first time it is needed. It carries
+    // no personal data and is never returned by any other endpoint (see toJSON).
+    qrCode: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
     passwordChangedAt: {
         type: Date
     },
@@ -103,6 +110,7 @@ guestSchema.methods.toJSON = function() {
     delete obj.password;
     delete obj.passwordResetCode;
     delete obj.refreshToken;
+    delete obj.qrCode;
     return obj;
 };
 

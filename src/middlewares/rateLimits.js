@@ -54,6 +54,11 @@ module.exports = {
     // Reset code check and new password: 20 per hour per address, 8 FAILED tries per hour per account (6-digit codes)
     resetPerIp: rateLimit({ windowMs: HOUR, max: 20, message: tooMany }),
     resetPerAccount: rateLimit({ windowMs: HOUR, max: 8, keyOf: accountKey, onlyFailures: true, message: tooMany }),
+    // Guest QR scan (staff): 60 scans per 10 minutes per signed-in admin account, and 120 per address; an unknown code still counts
+    qrScanPerAdmin: rateLimit({ windowMs: 10 * MIN, max: 60, keyOf: (req) => (req.guest && String(req.guest._id)) || req.ip, message: tooManyRequests }),
+    qrScanPerIp: rateLimit({ windowMs: 10 * MIN, max: 120, message: tooManyRequests }),
+    // Own QR code: 30 per 10 minutes per account
+    qrMinePerAccount: rateLimit({ windowMs: 10 * MIN, max: 30, keyOf: (req) => (req.guest && String(req.guest._id)) || req.ip, message: tooManyRequests }),
     // Table bookings: 40 per hour per address (shared venue Wi-Fi; an admin booking for guests is never limited)
     tableBookingPerIp: rateLimit({ windowMs: HOUR, max: 40, skip: skipAdmin, message: tooManyRequests }),
     // Chatbot: 40 messages per 10 minutes per address

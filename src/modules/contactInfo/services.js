@@ -1,9 +1,9 @@
 const ContactInfo = require("./model");
 
-const FIELDS = ["phone", "whatsapp", "hotline", "hoursEn", "hoursAr", "addressEn", "addressAr", "mapUrl", "facebookUrl", "instagramUrl", "youtubeUrl", "tiktokUrl"];
+const FIELDS = ["phone", "whatsapp", "hotline", "hoursEn", "hoursAr", "winterTitleEn", "winterTitleAr", "winterHoursEn", "winterHoursAr", "winterDaysEn", "winterDaysAr", "summerTitleEn", "summerTitleAr", "summerHoursEn", "summerHoursAr", "summerDaysEn", "summerDaysAr", "breakfastTitleEn", "breakfastTitleAr", "breakfastHoursEn", "breakfastHoursAr", "breakfastDaysEn", "breakfastDaysAr", "addressEn", "addressAr", "mapUrl", "facebookUrl", "instagramUrl", "youtubeUrl", "tiktokUrl"];
 const URL_FIELDS = ["mapUrl", "facebookUrl", "instagramUrl", "youtubeUrl", "tiktokUrl"];
 const PHONE_FIELDS = ["phone", "whatsapp", "hotline"];
-const TEXT_MAX = { hoursEn: 300, hoursAr: 300, addressEn: 300, addressAr: 300 };
+const TEXT_MAX = { hoursEn: 300, hoursAr: 300, addressEn: 300, addressAr: 300, ...Object.fromEntries(["winterTitleEn", "winterTitleAr", "winterHoursEn", "winterHoursAr", "winterDaysEn", "winterDaysAr", "summerTitleEn", "summerTitleAr", "summerHoursEn", "summerHoursAr", "summerDaysEn", "summerDaysAr", "breakfastTitleEn", "breakfastTitleAr", "breakfastHoursEn", "breakfastHoursAr", "breakfastDaysEn", "breakfastDaysAr"].map((f) => [f, /Title/.test(f) ? 80 : 120])) };
 
 const getDoc = async () => {
     let doc = await ContactInfo.findOne({ key: "contact-info" });
@@ -24,6 +24,22 @@ const serialize = (doc) => {
         out[f] = (doc && doc[f]) || "";
     });
     return out;
+};
+
+// One line per filled card ("Winter hours: 12:00 PM - 1:00 AM, Sunday to Saturday"). Used by readers of the opening hours
+// (the chatbot); falls back to the older single hoursEn / hoursAr text when no card is filled.
+const scheduleSummary = (c, lang) => {
+    const L = lang === "ar" ? "Ar" : "En";
+    const O = lang === "ar" ? "En" : "Ar";
+    const pick = (k) => c[k + L] || c[k + O] || "";
+    const lines = ["winter", "summer", "breakfast"].map((card) => {
+        const hours = pick(card + "Hours");
+        if (!hours) return "";
+        const title = pick(card + "Title");
+        const days = pick(card + "Days");
+        return `${title ? title + ": " : ""}${hours}${days ? ", " + days : ""}`;
+    }).filter(Boolean);
+    return lines.length ? lines.join("\n") : (lang === "ar" ? c.hoursAr || c.hoursEn : c.hoursEn || c.hoursAr) || "";
 };
 
 // Same answer for the website and for the chatbot tool
@@ -69,4 +85,5 @@ const setContactInfo = async (req, res, next) => {
     }
 };
 
-module.exports = { getContactInfo, setContactInfo, readContactInfo };
+module.exports = {
+    scheduleSummary, getContactInfo, setContactInfo, readContactInfo };

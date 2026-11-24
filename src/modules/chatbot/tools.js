@@ -621,7 +621,8 @@ const executeChatbotTool = async (name, args = {}, context = {}) => {
                 const { readContactInfo } = require("../contactInfo/services");
                 const c = await readContactInfo();
                 const pick = (en, ar) => ({ en: c[en] || null, ar: c[ar] || null });
-                const hours = pick("hoursEn", "hoursAr");
+                const { scheduleSummary } = require("../contactInfo/services");
+                const hours = { en: scheduleSummary(c, "en") || null, ar: scheduleSummary(c, "ar") || null };
                 const address = pick("addressEn", "addressAr");
                 const contact = { phone: c.phone || null, whatsapp: c.whatsapp || null, hotline: c.hotline || null, map: c.mapUrl || null };
                 const hasHours = !!(hours.en || hours.ar);

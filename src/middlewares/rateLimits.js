@@ -59,6 +59,10 @@ module.exports = {
     qrScanPerIp: rateLimit({ windowMs: 10 * MIN, max: 120, message: tooManyRequests }),
     // Favorites: 120 reads or changes per 10 minutes per signed-in account
     favoritesPerAccount: rateLimit({ windowMs: 10 * MIN, max: 120, keyOf: (req) => (req.guest && String(req.guest._id)) || req.ip, message: tooManyRequests }),
+    // Account screens (edit personal information, change password): 30 per 15 minutes per address; per account only the
+    // FAILED tries count (a wrong current password), 8 per 15 minutes
+    accountPerIp: rateLimit({ windowMs: 15 * MIN, max: 30, message: tooMany }),
+    accountPerAccount: rateLimit({ windowMs: 15 * MIN, max: 8, keyOf: (req) => (req.guest && String(req.guest._id)) || "", onlyFailures: true, message: tooMany }),
     // Own QR code: 30 per 10 minutes per account
     qrMinePerAccount: rateLimit({ windowMs: 10 * MIN, max: 30, keyOf: (req) => (req.guest && String(req.guest._id)) || req.ip, message: tooManyRequests }),
     // Table bookings: 40 per hour per address (shared venue Wi-Fi; an admin booking for guests is never limited)

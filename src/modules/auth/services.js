@@ -4,6 +4,7 @@ const LoyaltySettings = require("../loyalty/model");
 const bcrypt = require("bcryptjs");
 const sendEmail = require("../../utils/sendEmail");
 const { createToken, createRefreshToken, verifyRefreshToken } = require("../../utils/token");
+const { normalizePhone, PHONE_RE, NAME_MIN, PASSWORD_MIN, MSG } = require("../../utils/accountRules");
 
 // ==========================================
 // AUTHENTICATION SERVICES
@@ -372,7 +373,97 @@ const getMe = async (req, res, next) => {
     }
 };
 
+// ==========================================
+// OWN ACCOUNT (the signed-in guest, identified by the token alone)
+// ==========================================
+
+const fail = (res, code, message) => res.status(code).json({ success: false, message });
+
+// @desc Edit personal information: exactly what sign-up collects (name, phone, age, gender)
+// @route PUT /api/auth/me      body: { name, phone, age, gender, currentPassword }
+// @access Private. The account is req.guest (from the token); no id is read from the request.
+// Changing the phone number, a login identifier, needs the current password and a number no other account uses.
+const updateMe = async (req, res, next) => {
+    try {
+        const b = req.body || {};
+        const me = req.guest;
+        const update = {};
+
+        if (b.name !== undefined) {
+            const name = typeof b.name === "string" ? b.name.trim() : "";
+            if (name.length < NAME_MIN) return fail(res, 400, MSG.name);
+            update.name = name;
+        }
+        if (b.age !== undefined) {
+            const age = typeof b.age === "string" || typeof b.age === "number" ? String(b.age).trim() : "";
+            if (!age) return fail(res, 400, MSG.age);
+            update.age = age;
+        }
+        if (b.gender !== undefined) {
+            if (!["male", "female"].includes(b.gender)) return fail(res, 400, MSG.gender);
+            update.gender = b.gender;
+        }
+        let phoneChanged = false;
+        if (b.phone !== undefined) {
+            const phone = normalizePhone(b.phone);
+            if (!PHONE_RE.test(phone)) return fail(res, 400, MSG.phone);
+            if (phone !== me.phone) { phoneChanged = true; update.phone = phone; }
+        }
+        if (Object.keys(update).length === 0) return fail(res, 400, MSG.nothing);
+
+        if (phoneChanged) {
+            if (typeof b.currentPassword !== "string" || !b.currentPassword) return fail(res, 400, MSG.currentRequired);
+            if (!(await me.comparePassword(b.currentPassword))) return fail(res, 403, MSG.currentWrong);
+            const taken = await guestModel.findOne({ phone: update.phone, _id: { $ne: me._id } }).select("_id").lean();
+            if (taken) return fail(res, 409, MSG.phoneTaken);
+        }
+
+        try {
+            await guestModel.updateOne({ _id: me._id }, { $set: update });
+        } catch (err) {
+            if (err && err.code === 11000) return fail(res, 409, MSG.phoneTaken); // lost a race with another account
+            throw err;
+        }
+        const fresh = await guestModel.findById(me._id);
+        res.status(200).json({ success: true, message: "تم حفظ البيانات / Saved", data: fresh });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc Change password
+// @route POST /api/auth/change-password   body: { currentPassword, newPassword, newPasswordConfirm }
+// @access Private (token only). Stored with the same hashing as sign-up (the model's pre-save hook). Other sessions
+// end: passwordChangedAt makes every earlier access token invalid (see protectGuest) and a new refresh token replaces
+// the old one; this device gets fresh tokens. A password is never logged or returned.
+const changePassword = async (req, res, next) => {
+    try {
+        const { currentPassword, newPassword, newPasswordConfirm } = req.body || {};
+        if (typeof currentPassword !== "string" || !currentPassword) return fail(res, 400, MSG.currentRequired);
+        if (typeof newPassword !== "string" || newPassword.length < PASSWORD_MIN) return fail(res, 400, MSG.passwordShort);
+        if (newPasswordConfirm !== undefined && newPasswordConfirm !== newPassword) return fail(res, 400, MSG.passwordMismatch);
+
+        const me = await guestModel.findById(req.guest._id);
+        if (!me) return fail(res, 401, MSG.currentWrong);
+        if (!(await me.comparePassword(currentPassword))) return fail(res, 403, MSG.currentWrong);
+        if (newPassword === currentPassword || (await me.comparePassword(newPassword))) return fail(res, 400, MSG.passwordSame);
+
+        me.password = newPassword; // hashed by the pre-save hook, as at sign-up
+        me.passwordChangedAt = new Date();
+        const token = createToken({ id: me._id });
+        const refreshToken = createRefreshToken({ id: me._id });
+        me.refreshToken = refreshToken;
+        await me.save({ validateBeforeSave: false });
+
+        res.status(200).json({ success: true, message: "تم تغيير كلمة المرور / Password changed", token, refreshToken });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
+    updateMe,
+    changePassword,
     signup,
     login,
     forgetPassword,

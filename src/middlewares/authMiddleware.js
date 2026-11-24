@@ -37,6 +37,14 @@ const protectGuest = async (req, res, next) => {
             });
         }
 
+        // A password change ends every session that began before it
+        if (currentGuest.passwordChangedAt && decoded.iat && decoded.iat * 1000 < currentGuest.passwordChangedAt.getTime() - 1000) {
+            return res.status(401).json({
+                success: false,
+                message: "تم تغيير كلمة المرور، يرجى تسجيل الدخول مجدداً"
+            });
+        }
+
         req.guest = currentGuest;
         next();
     } catch (error) {

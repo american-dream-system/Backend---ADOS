@@ -8,7 +8,9 @@ const {
     verifyResetCode,
     resetPassword,
     refreshTokenService,
-    getMe
+    getMe,
+    updateMe,
+    changePassword
 } = require("./services");
 
 const {
@@ -46,5 +48,7 @@ router.post("/refreshToken", refreshTokenService);
 
 // Current User Profile
 router.get("/me", protectGuest, getMe);
+router.put("/me", L.accountPerIp, protectGuest, L.accountPerAccount, updateMe);
+router.post("/change-password", L.accountPerIp, protectGuest, L.accountPerAccount, changePassword);
 
 module.exports = router;

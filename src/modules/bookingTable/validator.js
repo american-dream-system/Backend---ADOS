@@ -1,5 +1,6 @@
 const { check, body } = require("express-validator");
 const validatorMiddleware = require("../../middlewares/validatorMiddlewar");
+const { notPastEgyptDate } = require("../../utils/egyptDate");
 
 // @desc التحقق من صحة بيانات حجز طاولة جديدة
 const createBookingTableValidator = [
@@ -11,7 +12,8 @@ const createBookingTableValidator = [
 
     check("date")
         .notEmpty().withMessage("تاريخ الحجز مطلوب")
-        .isISO8601().withMessage("صيغة تاريخ الحجز غير صحيحة (مثال: 2026-10-24)"),
+        .isISO8601().withMessage("صيغة تاريخ الحجز غير صحيحة (مثال: 2026-10-24)")
+        .bail().custom(notPastEgyptDate),
 
     check("time")
         .notEmpty().withMessage("موعد الحجز مطلوب (مثل: 6:00 PM)"),

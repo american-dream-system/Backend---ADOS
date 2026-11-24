@@ -1,6 +1,7 @@
 const { check } = require("express-validator");
 const validatorMiddleware = require("../../middlewares/validatorMiddlewar");
 const TripBooking = require("./model");
+const { notPastEgyptDate } = require("../../utils/egyptDate");
 
 // Validator for creating quote / booking
 const createTripQuoteValidator = [
@@ -15,7 +16,8 @@ const createTripQuoteValidator = [
 
     check("tripDate")
         .notEmpty().withMessage("تاريخ الرحلة مطلوب")
-        .isISO8601().withMessage("صيغة تاريخ الرحلة غير صحيحة (مثال: 2026-10-24)"),
+        .isISO8601().withMessage("صيغة تاريخ الرحلة غير صحيحة (مثال: 2026-10-24)")
+        .bail().custom(notPastEgyptDate),
 
     // The smallest group depends on the chosen offer and is checked on the server with that offer
     check("studentsCount")

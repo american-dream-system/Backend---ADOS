@@ -1,5 +1,6 @@
 const { check } = require("express-validator");
 const validatorMiddleware = require("../../middlewares/validatorMiddlewar");
+const { notPastEgyptDate } = require("../../utils/egyptDate");
 
 const createEventRequestValidator = [
     check("kind").isIn(["birthday", "family", "meeting"]).withMessage("kind must be birthday, family or meeting"),
@@ -9,7 +10,7 @@ const createEventRequestValidator = [
         .matches(/^(?:\+?20|0)1[0125]\d{8}$/)
         .withMessage("Enter a valid Egyptian mobile number"),
     check("customerEmail").optional({ values: "falsy" }).isEmail().withMessage("The email address is not valid").isLength({ max: 120 }),
-    check("eventDate").notEmpty().withMessage("Event date is required"),
+    check("eventDate").notEmpty().withMessage("Event date is required").bail().custom(notPastEgyptDate),
     check("time").optional({ values: "null" }).isString().isLength({ max: 60 }).withMessage("Time is too long"),
     check("guestCount").optional({ values: "null" }).isInt({ min: 1, max: 1000 }).withMessage("Guests must be a whole number"),
     check("notes").optional({ values: "null" }).isString().isLength({ max: 1000 }).withMessage("Notes can be up to 1000 characters"),

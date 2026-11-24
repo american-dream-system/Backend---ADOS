@@ -1,5 +1,6 @@
 const { check } = require("express-validator");
 const validatorMiddleware = require("../../middlewares/validatorMiddlewar");
+const { notPastEgyptDate } = require("../../utils/egyptDate");
 
 // Validator for creating event/hall booking
 const createEventBookingValidator = [
@@ -23,7 +24,8 @@ const createEventBookingValidator = [
 
     check("eventDate")
         .notEmpty().withMessage("تاريخ المناسبة مطلوب")
-        .isISO8601().withMessage("صيغة تاريخ المناسبة غير صحيحة (مثال: 2026-10-24)"),
+        .isISO8601().withMessage("صيغة تاريخ المناسبة غير صحيحة (مثال: 2026-10-24)")
+        .bail().custom(notPastEgyptDate),
 
     check("session")
         .notEmpty().withMessage("فترة الحفل مطلوبة")

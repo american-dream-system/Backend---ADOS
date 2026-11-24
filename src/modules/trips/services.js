@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const TripOffer = require("./offerModel");
 const { mediaUrl, removeMediaFile } = require("../../utils/mediaFiles");
 const { normalizeImagePath } = require("../../utils/mediaPath");
+const { egyptDateOf, isPastEgyptDate, PAST_DATE_MESSAGE } = require("../../utils/egyptDate");
 const { OrderError, wholeQty, round2, sendOrderError, MAX_STUDENTS } = require("../../utils/orderPricing");
 
 // ---- Trip offers: stored in the database, edited from the admin. There are no built-in offers.
@@ -413,6 +414,18 @@ const updateTripBooking = async (req, res) => {
         // Totals are never taken from the request: they are recomputed from the offer's server price
         delete updates.totalPrice;
         delete updates.pricePerStudent;
+
+        // Moving the trip to another day follows the booking rule: never a past day in Egypt time
+        if (updates.tripDate !== undefined) {
+            const asked = new Date(updates.tripDate);
+            if (Number.isNaN(asked.getTime())) {
+                return res.status(400).json({ success: false, message: "تاريخ الرحلة غير صالح / The trip date is not valid" });
+            }
+            const sameDay = egyptDateOf(asked) === egyptDateOf(trip.tripDate);
+            if (!sameDay && isPastEgyptDate(updates.tripDate)) {
+                return res.status(400).json({ success: false, message: PAST_DATE_MESSAGE });
+            }
+        }
 
         // Recalculate price if students or offer changed
         if (updates.studentsCount || updates.offerId) {

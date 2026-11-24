@@ -631,7 +631,55 @@ const scanGuestQr = async (req, res, next) => {
     }
 };
 
+// ==========================================
+// FAVORITES (kind + id only, the guest's own list, token only)
+// ==========================================
+
+const FAV_KINDS = ["dish", "ticket", "package", "zone", "featured"];
+const FAV_MAX = 200;
+const FAV_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+// @route GET /api/guests/me/favorites
+const getMyFavorites = async (req, res, next) => {
+    try {
+        const me = await guestModel.findById(req.guest._id).select("favorites").lean();
+        res.status(200).json({ success: true, data: { favorites: (me && me.favorites) || [] } });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @route PUT /api/guests/me/favorites   body: { kind, itemId, favorite: true | false }
+// Idempotent: adding what is there, or removing what is not, changes nothing and succeeds. The list belongs to the
+// signed-in guest (the token); no guest id is read from the request.
+const setMyFavorite = async (req, res, next) => {
+    try {
+        const { kind, itemId, favorite } = req.body || {};
+        if (!FAV_KINDS.includes(kind) || typeof itemId !== "string" || !FAV_ID.test(itemId) || typeof favorite !== "boolean") {
+            return res.status(400).json({ success: false, message: "Invalid favorite" });
+        }
+        const _id = req.guest._id;
+        if (favorite) {
+            await guestModel.updateOne(
+                { _id, favorites: { $not: { $elemMatch: { kind, itemId } } }, [`favorites.${FAV_MAX - 1}`]: { $exists: false } },
+                { $push: { favorites: { kind, itemId } } }
+            );
+        } else {
+            await guestModel.updateOne({ _id }, { $pull: { favorites: { kind, itemId } } });
+        }
+        const me = await guestModel.findById(_id).select("favorites").lean();
+        const list = (me && me.favorites) || [];
+        const has = list.some((f) => f.kind === kind && f.itemId === itemId);
+        if (favorite && !has) return res.status(400).json({ success: false, message: `You can save up to ${FAV_MAX} favorites` });
+        res.status(200).json({ success: true, data: { favorites: list } });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
+    getMyFavorites,
+    setMyFavorite,
     getMyQr,
     scanGuestQr,
     createGuest,

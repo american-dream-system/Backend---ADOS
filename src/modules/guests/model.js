@@ -50,6 +50,16 @@ const guestSchema = new Schema({
     refreshToken: {
         type: String
     },
+    // Favorites: only the kind and the id of the item (never a name, image or price: the app resolves those from
+    // current data). At most 200 per guest. Changed only through /api/guests/me/favorites.
+    favorites: {
+        type: [{
+            _id: false,
+            kind: { type: String, enum: ["dish", "ticket", "package", "zone", "featured"], required: true },
+            itemId: { type: String, required: true, maxlength: 64 }
+        }],
+        default: undefined
+    },
     // The guest's personal QR: a random, unguessable code made on the server the first time it is needed. It carries
     // no personal data and is never returned by any other endpoint (see toJSON).
     qrCode: {
@@ -111,6 +121,7 @@ guestSchema.methods.toJSON = function() {
     delete obj.passwordResetCode;
     delete obj.refreshToken;
     delete obj.qrCode;
+    delete obj.favorites;
     return obj;
 };
 

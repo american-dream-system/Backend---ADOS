@@ -57,6 +57,8 @@ module.exports = {
     // Guest QR scan (staff): 60 scans per 10 minutes per signed-in admin account, and 120 per address; an unknown code still counts
     qrScanPerAdmin: rateLimit({ windowMs: 10 * MIN, max: 60, keyOf: (req) => (req.guest && String(req.guest._id)) || req.ip, message: tooManyRequests }),
     qrScanPerIp: rateLimit({ windowMs: 10 * MIN, max: 120, message: tooManyRequests }),
+    // Favorites: 120 reads or changes per 10 minutes per signed-in account
+    favoritesPerAccount: rateLimit({ windowMs: 10 * MIN, max: 120, keyOf: (req) => (req.guest && String(req.guest._id)) || req.ip, message: tooManyRequests }),
     // Own QR code: 30 per 10 minutes per account
     qrMinePerAccount: rateLimit({ windowMs: 10 * MIN, max: 30, keyOf: (req) => (req.guest && String(req.guest._id)) || req.ip, message: tooManyRequests }),
     // Table bookings: 40 per hour per address (shared venue Wi-Fi; an admin booking for guests is never limited)

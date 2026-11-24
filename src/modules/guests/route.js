@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { adminOnly, protectGuest } = require("../../middlewares/authMiddleware");
-const { qrScanPerAdmin, qrScanPerIp, qrMinePerAccount } = require("../../middlewares/rateLimits");
+const { qrScanPerAdmin, qrScanPerIp, qrMinePerAccount, favoritesPerAccount } = require("../../middlewares/rateLimits");
 const { ownGuestTarget } = require("../../middlewares/ownership");
 
 const {
@@ -13,6 +13,8 @@ const {
     getGuestFullHistory,
     getAllGuestsSummary,
     getMyQr,
+    getMyFavorites,
+    setMyFavorite,
     scanGuestQr
 } = require("./services");
 
@@ -51,6 +53,8 @@ const protectAdminOrDashboard = async (req, res, next) => {
 
 // Own QR code (token only) and the staff scan lookup. Declared before "/:id" so the paths are not read as an id.
 router.get("/me/qr", protectGuest, qrMinePerAccount, getMyQr);
+router.get("/me/favorites", protectGuest, favoritesPerAccount, getMyFavorites);
+router.put("/me/favorites", protectGuest, favoritesPerAccount, setMyFavorite);
 router.post("/scan", qrScanPerIp, adminOnly, qrScanPerAdmin, scanGuestQr);
 
 // Aggregated summary of all guests for admin dashboard

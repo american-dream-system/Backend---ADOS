@@ -9,9 +9,8 @@ const { createAndEmitNotification } = require("../notifications/services");
 const { OrderError, wholeQty, round2, sendOrderError } = require("../../utils/orderPricing");
 const { findRestaurantItem } = require("../../utils/catalogs");
 
-// Delivery fee (free promotion) and VAT / municipal service: set here, never taken from the client
+// Delivery fee (free promotion): set here, never taken from the client. Delivery orders carry no VAT or service charge.
 const DELIVERY_FEE = 0;
-const VAT_RATE = 0.14;
 
 // @desc Middleware to resize and save uploaded menu item image
 const resizeMenuItemImage = async (req, res, next) => {
@@ -542,7 +541,7 @@ const placeOrder = async (req, res, next) => {
         const orderCode = orderType === "delivery" ? `AD-DLV-${codeNumber}` : `ORD-${codeNumber}`;
 
         // Every line is priced from the menu in the database (Media "restaurant" items / combos, or a
-        // MenuItem document). The client's price, line total, delivery fee, VAT and total are ignored.
+        // MenuItem document). The client's price, line total, delivery fee and total are ignored.
         if (parsedItems.length > 100) {
             throw new OrderError("عدد أصناف الطلب كبير جداً", 400);
         }
@@ -574,8 +573,7 @@ const placeOrder = async (req, res, next) => {
         }
 
         const deliveryFee = orderType === "delivery" ? DELIVERY_FEE : 0;
-        const vatAmount = round2(subtotal * VAT_RATE);
-        const totalAmount = round2(subtotal + deliveryFee + vatAmount);
+        const totalAmount = round2(subtotal + deliveryFee);
 
         // Auto determine payment status
         // A client may only ask for "pending" / "pending_verification"; "paid" is set by staff
@@ -633,7 +631,6 @@ const placeOrder = async (req, res, next) => {
             items: normalizedItems,
             subtotal,
             deliveryFee,
-            vatAmount,
             totalAmount,
             totalPoints,
             pointsAwarded,

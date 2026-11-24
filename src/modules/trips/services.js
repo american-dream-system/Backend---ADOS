@@ -307,7 +307,7 @@ const getTripById = async (req, res) => {
 const getAllTrips = async (req, res) => {
     try {
         const page = parseInt(req.query.page, 10) || 1;
-        const limit = parseInt(req.query.limit, 10) || 20;
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 200); // never an unbounded page
         const skip = (page - 1) * limit;
 
         const filter = {};
@@ -326,17 +326,21 @@ const getAllTrips = async (req, res) => {
 
         if (req.query.date) {
             const dateObj = new Date(req.query.date);
-            const nextDay = new Date(dateObj);
-            nextDay.setDate(nextDay.getDate() + 1);
-            filter.tripDate = { $gte: dateObj, $lt: nextDay };
+            if (!Number.isNaN(dateObj.getTime())) { // an unreadable date is ignored instead of failing the request
+                const nextDay = new Date(dateObj);
+                nextDay.setDate(nextDay.getDate() + 1);
+                filter.tripDate = { $gte: dateObj, $lt: nextDay };
+            }
         }
 
         if (req.query.search) {
+            // The text is searched as plain text: characters such as ( or + must not break the query
+            const term = String(req.query.search).slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             filter.$or = [
-                { orgName: { $regex: req.query.search, $options: "i" } },
-                { contactName: { $regex: req.query.search, $options: "i" } },
-                { phone: { $regex: req.query.search, $options: "i" } },
-                { bookingCode: { $regex: req.query.search, $options: "i" } }
+                { orgName: { $regex: term, $options: "i" } },
+                { contactName: { $regex: term, $options: "i" } },
+                { phone: { $regex: term, $options: "i" } },
+                { bookingCode: { $regex: term, $options: "i" } }
             ];
         }
 

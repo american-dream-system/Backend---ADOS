@@ -4,6 +4,7 @@ const { mediaUrl, removeMediaFile } = require("../../utils/mediaFiles");
 
 // hero = banner at the top of the trip form, success = photo on the booking confirmation (and the cart thumbnail)
 const SLOTS = ["hero", "success"];
+const MAX_GALLERY = 24; // same limit as the other Gallery lists
 
 const getDoc = async () => {
     let doc = await TripsHome.findOne({ key: "trips-home" });
@@ -23,7 +24,10 @@ const serialize = (doc) => {
     SLOTS.forEach((s) => {
         images[s] = mediaUrl(doc.images && doc.images[s]);
     });
-    return { images };
+    return {
+        images,
+        gallery: (doc.gallery || []).map((g) => ({ id: String(g._id), image: mediaUrl(g.image) })),
+    };
 };
 
 const send = (res, doc) => res.status(200).json({ success: true, data: serialize(doc) });
@@ -62,4 +66,104 @@ const setImage = async (req, res, next) => {
     }
 };
 
-module.exports = { getTripsHome, setImage, SLOTS };
+// Files uploaded by a request that failed: remove them
+const discardUploads = (req) => {
+    const list = Array.isArray(req.body && req.body.images) ? req.body.images : [];
+    list.forEach(removeMediaFile);
+    if (req.body && req.body.image) removeMediaFile(req.body.image);
+};
+
+// @route POST /api/trips-home/gallery   (admin, multipart field "images", up to 10 files; appended in order)
+const addGalleryImages = async (req, res, next) => {
+    const uploaded = Array.isArray(req.body && req.body.images) ? req.body.images : [];
+    try {
+        if (!uploaded.length) {
+            return res.status(400).json({ success: false, message: "Image files are required (field: images)" });
+        }
+        const doc = await getDoc();
+        if (doc.gallery.length + uploaded.length > MAX_GALLERY) {
+            discardUploads(req);
+            return res.status(400).json({ success: false, message: `The gallery can hold at most ${MAX_GALLERY} images` });
+        }
+        uploaded.forEach((name) => doc.gallery.push({ image: normalizeImagePath(name) }));
+        await doc.save();
+        send(res, doc);
+    } catch (error) {
+        discardUploads(req);
+        next(error);
+    }
+};
+
+// @route PUT /api/trips-home/gallery/:id   (admin, multipart field "image": replaces that image, keeps its place)
+const replaceGalleryImage = async (req, res, next) => {
+    const uploaded = req.body && req.body.image;
+    try {
+        if (!uploaded) {
+            return res.status(400).json({ success: false, message: "Image file is required (field: image)" });
+        }
+        const doc = await getDoc();
+        const item = doc.gallery.id(req.params.id);
+        if (!item) {
+            removeMediaFile(uploaded);
+            return res.status(404).json({ success: false, message: "Gallery image not found" });
+        }
+        const old = item.image;
+        item.image = normalizeImagePath(uploaded);
+        await doc.save();
+        if (old && old !== item.image) removeMediaFile(old);
+        send(res, doc);
+    } catch (error) {
+        removeMediaFile(uploaded);
+        next(error);
+    }
+};
+
+// @route DELETE /api/trips-home/gallery/:id   (admin)
+const removeGalleryImage = async (req, res, next) => {
+    try {
+        const doc = await getDoc();
+        const item = doc.gallery.id(req.params.id);
+        if (!item) return res.status(404).json({ success: false, message: "Gallery image not found" });
+        const old = item.image;
+        item.deleteOne();
+        await doc.save();
+        removeMediaFile(old);
+        send(res, doc);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @route PUT /api/trips-home/gallery/order   (admin) body: { ids: [every gallery image id, in the new order] }
+const reorderGallery = async (req, res, next) => {
+    try {
+        const ids = req.body && req.body.ids;
+        const doc = await getDoc();
+        const current = doc.gallery.map((g) => String(g._id));
+        const valid =
+            Array.isArray(ids) &&
+            ids.length === current.length &&
+            new Set(ids.map(String)).size === ids.length &&
+            ids.every((id) => current.includes(String(id)));
+        if (!valid) {
+            return res.status(400).json({ success: false, message: "ids must list every gallery image exactly once" });
+        }
+        const byId = new Map(doc.gallery.map((g) => [String(g._id), g]));
+        doc.gallery = ids.map((id) => byId.get(String(id)));
+        await doc.save();
+        send(res, doc);
+    } catch (error) {
+        next(error);
+    }
+};
+
+module.exports = {
+    getTripsHome,
+    setImage,
+    addGalleryImages,
+    replaceGalleryImage,
+    removeGalleryImage,
+    reorderGallery,
+    SLOTS,
+    MAX_GALLERY,
+};
